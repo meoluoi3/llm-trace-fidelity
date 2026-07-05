@@ -1,0 +1,16 @@
+meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/result from hjson$ python3 compare_trace.py truth_trace.json gpt_trace.json
+Steps compared: 11
+Total (step, var) checks: 15
+Wrong branch/line order: 6
+Wrong variable value: 2 (13.3%)
+Trace fidelity (var-level accuracy): 46.7%
+
+First mismatches found (max 10):
+  {'step': 0, 'line': 346, 'type': 'WRONG_VALUE', 'var': 'value.type()', 'gt': '4157393024', 'pred': 'unknown'}
+  {'step': 1, 'line': 347, 'type': 'WRONG_VALUE', 'var': 'value.type()', 'gt': '4157393024', 'pred': 'Hjson::Type::Map'}
+  {'step': 5, 'type': 'WRONG_LINE', 'gt_line': 376, 'pred_line': 370}
+  {'step': 6, 'type': 'WRONG_LINE', 'gt_line': 377, 'pred_line': 371}
+  {'step': 7, 'type': 'WRONG_LINE', 'gt_line': 378, 'pred_line': 373}
+  {'step': 8, 'type': 'WRONG_LINE', 'gt_line': 380, 'pred_line': 374}
+  {'step': 9, 'type': 'WRONG_LINE', 'gt_line': 381, 'pred_line': 375}
+  {'step': 10, 'type': 'WRONG_LINE', 'gt_line': 382, 'pred_line': 376}
