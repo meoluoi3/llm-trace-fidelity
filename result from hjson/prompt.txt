@@ -11,7 +11,7 @@ The function `_writeValueBegin` is called for the very first time (to process th
 INSTRUCTIONS:
 1. Trace the execution starting strictly from the line: `static void _writeValueBegin(Encoder *e) {` (around line 346).
 2. Trace ONLY the FIRST call to this function. Stop tracing as soon as you hit a `return` statement or reach the end of the function block.
-3. For each executed line, record the exact line number and the values of the tracked expressions AFTER that line has executed.
+3. For each executed line, record the exact line number and the values of the tracked expressions BEFORE that line has executed.
 
 TRACKED EXPRESSIONS:
 - "value.type()"
