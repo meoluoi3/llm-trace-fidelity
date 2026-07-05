@@ -1,0 +1,98 @@
+[
+  {
+    "line": 346,
+    "vars": {
+      "value.type()": "unknown",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 347,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 349,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 350,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 353,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 376,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 377,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 378,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 380,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 381,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 382,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 383,
+    "vars": {
+      "value.type()": "Hjson::Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  }
+]
