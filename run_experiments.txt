@@ -1,0 +1,49 @@
+========================================================================
+ QUY TRÌNH THỰC NGHIỆM ĐO LƯỜNG TRACE FIDELITY TRÊN HJSON-CPP
+========================================================================
+
+# BƯỚC 0: CHUẨN BỊ MÔI TRƯỜNG VÀ MÃ NGUỒN
+# Clone thư viện hjson-cpp (phiên bản mới nhất) với chiều sâu 1 để tiết kiệm thời gian
+git clone --depth 1 https://github.com/hjson/hjson-cpp.git
+
+# Di chuyển vào thư mục dự án vừa clone
+cd hjson-cpp
+
+# Copy các file công cụ từ thư mục cha (repo llm-trace-fidelity) vào thư mục hiện tại
+cp ../test_main.cpp .
+cp ../gdb_tracer.py .
+cp ../compare_trace.py .
+
+
+# BƯỚC 1: BIÊN DỊCH MÃ NGUỒN C++ (KHÔNG TỐI ƯU HÓA)
+# Bắt buộc dùng -g để tạo thông tin debug và -O0 để giữ nguyên cấu trúc dòng lệnh cho GDB
+g++ -g -O0 -std=c++11 -Iinclude/hjson test_main.cpp src/*.cpp -o target
+
+
+# BƯỚC 2: YÊU CẦU LLM SINH TEST CASE (OUTCOME)
+# (Thực hiện trên giao diện Web của ChatGPT/Claude)
+# Cung cấp file test_main.cpp cho LLM và yêu cầu:
+# "Hãy sinh một chuỗi JSON hợp lệ truyền vào ./target '<chuỗi>' để chương trình nhảy vào nhánh `case Type::Map:` trong hàm Hjson::_writeValueBegin".
+# -> LLM dự đoán và sinh ra input: '{"key": "value"}'
+
+
+# BƯỚC 3: LẤY VẾT THỰC THI THỰC TẾ (GROUND TRUTH BẰNG GDB)
+# Chạy GDB ở chế độ batch (tự động thoát), bỏ qua màn hình chào mừng (-q), và chạy file script.
+gdb -q -batch -x gdb_tracer.py --args ./target '{"key": "value"}'
+# KẾT QUẢ: Hệ thống sinh ra file `truth_trace.json` chứa dấu vết thực thi thực sự của CPU.
+
+
+# BƯỚC 4: YÊU CẦU LLM MÔ PHỎNG THỰC THI (REASONING TRACE)
+# (Thực hiện trên giao diện Web của ChatGPT/Claude)
+# Cung cấp cho LLM toàn bộ file `src/hjson_encode.cpp` và Prompt mẫu (từ file compare_trace.py).
+# Thiết lập Trạng thái Khởi tạo (Initial State) cho LLM:
+# Input: '{"key": "value"}' -> Giả định value.type() là Hjson::Type::Map.
+# Yêu cầu LLM xuất ra chuỗi JSON chứa các bước thực thi (dòng lệnh và giá trị biến).
+# -> Copy kết quả JSON của LLM, lưu vào file có tên `llm_trace.json`.
+
+
+# BƯỚC 5: ĐỐI CHIẾU VÀ ĐÁNH GIÁ (FIDELITY CHECK)
+# Chạy script Python để so sánh 2 file trace và tính điểm Fidelity
+python3 compare_trace.py truth_trace.json llm_trace.json
+# KẾT QUẢ: In ra terminal các chỉ số (Số bước khớp, WRONG_LINE, WRONG_VALUE) và tỷ lệ % Trace Fidelity.
+
