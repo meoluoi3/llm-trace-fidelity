@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
   }
   
   try {
-    // 1. Unmarshal: Đọc chuỗi JSON/HJSON từ terminal (do AI sinh ra) biến thành C++ Object
+    // 1. Unmarshal: Đọc chuỗi JSON/HJSON từ terminal biến thành C++ Object
     Hjson::Value v = Hjson::Unmarshal(argv[1]);
     
     // 2. Marshal: Ghi Object đó ra lại chuỗi (Thao tác này sẽ gọi ngầm _writeValueBegin)
