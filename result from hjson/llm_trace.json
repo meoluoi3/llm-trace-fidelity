@@ -1,0 +1,82 @@
+[
+  {
+    "line": 346,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 348,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 349,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 374,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 375,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "0",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 376,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 378,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 379,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 380,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  },
+  {
+    "line": 381,
+    "vars": {
+      "value.type()": "Type::Map",
+      "e->indent": "1",
+      "e->opt.comments": "true"
+    }
+  }
+]

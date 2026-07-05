@@ -1,0 +1,51 @@
+meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/hjson-cpp$ g++ -g -O0 -std=c++11 -Iinclude/hjson test_main.cpp src/*.cpp -o target
+meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/hjson-cpp$ gdb -q -batch -x gdb_tracer.py --args ./target '{"key": "value"}'
+Breakpoint 1 at 0x138c5: file src/hjson_encode.cpp, line 346.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, Hjson::_writeValueBegin (e=0x7fffffffd450) at src/hjson_encode.cpp:346
+346     static void _writeValueBegin(Encoder *e) {
+warning: RTTI symbol not found for class 'std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >'
+warning: RTTI symbol not found for class 'std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >'
+warning: RTTI symbol not found for class 'std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >'
+347       const Value &value = *e->vParent.back().pVal;
+warning: RTTI symbol not found for class 'std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >'
+warning: RTTI symbol not found for class 'std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >'
+warning: RTTI symbol not found for class 'std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >'
+349       if (e->opt.comments) {
+350         *e->os << value.get_comment_key();
+353       switch (value.type()) {
+376         if (!e->opt.omitRootBraces || e->vParent.size() > 1 || value.empty()) {
+377           *e->os << "{";
+378           e->indent++;
+380         e->vParent.back().commentAfter = value.get_comment_inside();
+381         e->vParent.back().it = value.begin();
+382         e->vState.back() = EncodeState::MapElemBegin;
+383         return;
+390     }
+Hjson::_marshalLoop (e=0x7fffffffd450, v=...) at src/hjson_encode.cpp:592
+592           break;
+Wrote 13 steps to truth_trace.json
+
+Breakpoint 1, Hjson::_writeValueBegin (e=0x7fffffffd450) at src/hjson_encode.cpp:346
+346     static void _writeValueBegin(Encoder *e) {
+meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/hjson-cpp$ python3 compare_trace.py truth_trace.json llm_trace.json
+Steps compared: 10
+Total (step, var) checks: 15
+Wrong branch/line order: 5
+Wrong variable value: 6 (40.0%)
+Trace fidelity (var-level accuracy): 26.7%
+
+First mismatches found (max 10):
+  {'step': 0, 'line': 346, 'type': 'WRONG_VALUE', 'var': 'value.type()', 'gt': '4157393024', 'pred': 'Type::Map'}
+  {'step': 1, 'type': 'WRONG_LINE', 'gt_line': 347, 'pred_line': 348}
+  {'step': 2, 'line': 349, 'type': 'WRONG_VALUE', 'var': 'value.type()', 'gt': 'Hjson::Type::Map', 'pred': 'Type::Map'}
+  {'step': 3, 'type': 'WRONG_LINE', 'gt_line': 350, 'pred_line': 374}
+  {'step': 4, 'type': 'WRONG_LINE', 'gt_line': 353, 'pred_line': 375}
+  {'step': 5, 'line': 376, 'type': 'WRONG_VALUE', 'var': 'value.type()', 'gt': 'Hjson::Type::Map', 'pred': 'Type::Map'}
+  {'step': 5, 'line': 376, 'type': 'WRONG_VALUE', 'var': 'e->indent', 'gt': '0', 'pred': '1'}
+  {'step': 6, 'type': 'WRONG_LINE', 'gt_line': 377, 'pred_line': 378}
+  {'step': 7, 'type': 'WRONG_LINE', 'gt_line': 378, 'pred_line': 379}
+  {'step': 8, 'line': 380, 'type': 'WRONG_VALUE', 'var': 'value.type()', 'gt': 'Hjson::Type::Map', 'pred': 'Type::Map'}
+meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/hjson-cpp$ 

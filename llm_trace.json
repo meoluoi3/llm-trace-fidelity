@@ -1,0 +1,13 @@
+[
+  {"line":7,"vars":{"depth":"0","in_quote":"undefined","x":"undefined","i":"undefined","c":"undefined"}},
+  {"line":8,"vars":{"depth":"0","in_quote":"false","x":"undefined","i":"undefined","c":"undefined"}},
+  {"line":9,"vars":{"depth":"0","in_quote":"false","x":"0","i":"undefined","c":"undefined"}},
+  {"line":11,"vars":{"depth":"0","in_quote":"false","x":"0","i":"0","c":"undefined"}},
+  {"line":12,"vars":{"depth":"0","in_quote":"false","x":"0","i":"0","c":"}"}},
+  {"line":13,"vars":{"depth":"0","in_quote":"false","x":"0","i":"0","c":"}"}},
+  {"line":17,"vars":{"depth":"0","in_quote":"false","x":"0","i":"0","c":"}"}},
+  {"line":18,"vars":{"depth":"-1","in_quote":"false","x":"0","i":"0","c":"}"}},
+  {"line":20,"vars":{"depth":"-1","in_quote":"false","x":"-2","i":"0","c":"}"}},
+  {"line":11,"vars":{"depth":"-1","in_quote":"false","x":"-2","i":"1","c":"}"}},
+  {"line":22,"vars":{"depth":"-1","in_quote":"false","x":"-2","i":"1","c":"}"}}
+]
