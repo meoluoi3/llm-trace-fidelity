@@ -1,0 +1,77 @@
+// --- ENUM_DECL: EncodeState ---
+enum class EncodeState {
+  ValueBegin,
+  ValueEnd,
+  VectorElemBegin,
+  MapElemBegin,
+};
+
+// --- Class/Struct: EncodeParent ---
+class EncodeParent {
+public:
+  EncodeParent(const Value *_pVal) : pVal(_pVal), index(0), isEmpty(true) {}
+  const Value *pVal;
+  int index;
+  bool isEmpty;
+  std::string commentAfter;
+  std::map<std::string, Value>::const_iterator it;
+};
+
+// --- Class/Struct: Encoder ---
+struct Encoder {
+  EncoderOptions opt;
+  std::ostream *os;
+  std::locale loc;
+  int indent;
+  std::regex needsEscape, needsQuotes, needsEscapeML, startsWithKeyword,
+    needsEscapeName, lineBreak;
+  std::vector<EncodeState> vState;
+  std::vector<EncodeParent> vParent;
+};
+
+// --- Function: _writeValueBegin ---
+static void _writeValueBegin(Encoder *e) {
+  const Value &value = *e->vParent.back().pVal;
+
+  if (e->opt.comments) {
+    *e->os << value.get_comment_key();
+  }
+
+  switch (value.type()) {
+  case Type::Double:
+    if (std::isnan(static_cast<double>(value)) || std::isinf(static_cast<double>(value))) {
+      *e->os << Value(Type::Null).to_string();
+    } else if (!e->opt.allowMinusZero && value == 0 && std::signbit(static_cast<double>(value))) {
+      *e->os << Value(0).to_string();
+    } else {
+      *e->os << value.to_string();
+    }
+    break;
+
+  case Type::String:
+    _quote(e, value, _quoteForComment(e, value.get_comment_after()));
+    break;
+
+  case Type::Vector:
+    *e->os << "[";
+    e->indent++;
+    e->vParent.back().commentAfter = value.get_comment_inside();
+    e->vState.back() = EncodeState::VectorElemBegin;
+    return;
+
+  case Type::Map:
+    if (!e->opt.omitRootBraces || e->vParent.size() > 1 || value.empty()) {
+      *e->os << "{";
+      e->indent++;
+    }
+    e->vParent.back().commentAfter = value.get_comment_inside();
+    e->vParent.back().it = value.begin();
+    e->vState.back() = EncodeState::MapElemBegin;
+    return;
+
+  default:
+    *e->os << value.to_string();
+  }
+
+  e->vState.back() = EncodeState::ValueEnd;
+}

@@ -1,0 +1,12 @@
+E:\UET\LAB\llm-trace-fidelity\static_and_dynamic>python main.py
+=== LLM Trace Fidelity ===
+compiling test_main.cpp with hjson-cpp...
+compilation failed with errors:
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: C:\Users\hoang\AppData\Local\Temp\ccPFRepZ.o: in function `main':
+E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part3.cpp:78:(.text+0x11f): undefined reference to `_writeValueBegin(Encoder*)'
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part3.cpp:87:(.text+0x199): undefined reference to `_writeValueBegin(Encoder*)'
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part3.cpp:96:(.text+0x213): undefined reference to `_writeValueBegin(Encoder*)'
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part3.cpp:106:(.text+0x294): undefined reference to `_writeValueBegin(Encoder*)'
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part3.cpp:115:(.text+0x34f): undefined reference to `_writeValueBegin(Encoder*)'
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: C:\Users\hoang\AppData\Local\Temp\ccPFRepZ.o:E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part3.cpp:125: more undefined references to `_writeValueBegin(Encoder*)' follow
+collect2.exe: error: ld returned 1 exit status

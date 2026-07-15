@@ -1,0 +1,17 @@
+Act as an expert C++ software engineer and testing specialist.
+Below is the extracted static context containing the source code of the _writeValueBegin function and its related data structures from the Hjson-cpp library.
+
+Your task is to write a complete, standalone test_main.cpp driver containing the main() function to test this specific behavior.
+
+Requirements:
+
+    Properly initialize the Hjson::Encoder object (e) and any dependencies it requires (e.g., e.os pointing to an output stream, initializing e.vParent, etc.) to prevent Segmentation Faults.
+
+    Set up the state of the variables so that the execution flow strictly enters the case Type::Map: branch inside the _writeValueBegin function.
+
+    The code must be fully compilable. Assume #include "hjson.h" and standard libraries are available.
+
+    Output ONLY the C++ code inside a single markdown code block. Do not provide any explanations.
+
+Static Context:
+[insert AST]

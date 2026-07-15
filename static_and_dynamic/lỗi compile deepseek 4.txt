@@ -1,0 +1,40 @@
+E:\UET\LAB\llm-trace-fidelity\static_and_dynamic>python main.py
+=== LLM Trace Fidelity ===
+compiling test_main.cpp with hjson-cpp...
+compilation failed with errors:
+deepseek_expert_part4.cpp:40:3: error: reference to 'EncoderOptions' is ambiguous
+   40 |   EncoderOptions opt;
+      |   ^~~~~~~~~~~~~~
+In file included from deepseek_expert_part4.cpp:11:
+../hjson-cpp/include/hjson/hjson.h:97:8: note: candidates are: 'struct Hjson::EncoderOptions'
+   97 | struct EncoderOptions {
+      |        ^~~~~~~~~~~~~~
+deepseek_expert_part4.cpp:33:8: note:                 'struct EncoderOptions'
+   33 | struct EncoderOptions {
+      |        ^~~~~~~~~~~~~~
+deepseek_expert_part4.cpp: In function 'void _writeValueBegin(Encoder*)':
+deepseek_expert_part4.cpp:58:10: error: 'struct Encoder' has no member named 'opt'
+   58 |   if (e->opt.comments) {
+      |          ^~~
+deepseek_expert_part4.cpp:66:20: error: 'struct Encoder' has no member named 'opt'
+   66 |     } else if (!e->opt.allowMinusZero && value == 0 && std::signbit(static_cast<double>(value))) {
+      |                    ^~~
+deepseek_expert_part4.cpp:85:13: error: 'struct Encoder' has no member named 'opt'
+   85 |     if (!e->opt.omitRootBraces || e->vParent.size() > 1 || value.empty()) {
+      |             ^~~
+deepseek_expert_part4.cpp: In function 'int main()':
+deepseek_expert_part4.cpp:107:7: error: 'struct Encoder' has no member named 'opt'
+  107 |     e.opt.comments = false;
+      |       ^~~
+deepseek_expert_part4.cpp:108:7: error: 'struct Encoder' has no member named 'opt'
+  108 |     e.opt.allowMinusZero = true;
+      |       ^~~
+deepseek_expert_part4.cpp:109:7: error: 'struct Encoder' has no member named 'opt'
+  109 |     e.opt.omitRootBraces = false;
+      |       ^~~
+deepseek_expert_part4.cpp:142:11: error: 'struct Encoder' has no member named 'opt'
+  142 |         e.opt.allowMinusZero = false;
+      |           ^~~
+deepseek_expert_part4.cpp:148:11: error: 'struct Encoder' has no member named 'opt'
+  148 |         e.opt.allowMinusZero = true;
+      |           ^~~

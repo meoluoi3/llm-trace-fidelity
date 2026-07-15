@@ -1,0 +1,1 @@
+[Step 1] Line 64. Changes: { e->vParent.back().pVal = 0x5ffa00 (new), e->opt.comments = false (new), e->opt.allowMinusZero = true (new), e->opt.omitRootBraces = false (new), e->vParent.size() = 1 (new) }
