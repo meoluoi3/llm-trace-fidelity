@@ -1,0 +1,9 @@
+[Step 1] Line 347. const Value &value = *e->vParent.back().pVal; : Changes: { EncodeState::MapElemBegin = Hjson::EncodeState::MapElemBegin (new), EncodeState::ValueEnd = Hjson::EncodeState::ValueEnd (new), EncodeState::VectorElemBegin = Hjson::EncodeState::VectorElemBegin (new), e = 0x5ffd10 (new), e->indent = 0 (new), e->opt.allowMinusZero = true (new), e->opt.comments = false (new), e->opt.omitRootBraces = false (new), e->os = 0x5ffb90 (new), e->vParent.back().commentAfter = "" (new), value = @0x1 (new) }
+[Step 2] Line 349. if (e->opt.comments) { : Changes: { value = @0x5ffb60 (changed) }
+[Step 3] Line 353. switch (value.type()) { : (No changes)
+[Step 4] Line 355. if (std::isnan(static_cast<double>(value)) || std::isinf(static_cast<double>(value))) { : (No changes)
+[Step 5] Line 357. } else if (!e->opt.allowMinusZero && value == 0 && std::signbit(static_cast<double>(value))) { : (No changes)
+[Step 6] Line 360. *e->os << value.to_string(); : (No changes)
+[Step 7] Line 362. break; : (No changes)
+[Step 8] Line 389. e->vState.back() = EncodeState::ValueEnd; : (No changes)
+[Step 9] Line 390. } : (No changes)

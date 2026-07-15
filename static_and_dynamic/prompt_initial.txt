@@ -1,0 +1,33 @@
+You are an expert C++ software engineer. Your task is to write a standalone `test_main.cpp` file to test a specific branch inside a target function.
+
+### CONTEXT
+
+The following context contains the exact definitions of the structs, classes, enums, and the focal function you need. It has been pre-extracted for you:
+
+{context}
+
+### OBJECTIVE
+
+Target Function: {focal_function}
+Target Branch/Line to Cover: {target_branch}
+
+### INSTRUCTIONS
+
+1. Analyze the Context to understand the data structures required by the Target Function.
+2. Write a `main()` function that initializes the required arguments (e.g., pointers, objects, vectors) properly to avoid segmentation faults.
+3. Set the state of these objects specifically to force the execution flow into the Target Branch.
+4. **SINGLE TEST CASE ONLY (CRITICAL):** Do NOT write multiple test cases, loops, or blocks in the `main()` function. You must provide EXACTLY ONE test scenario that sets up the state, calls the Target Function exactly ONCE to hit the Target Branch, and then returns. # THIS IS NEW
+5. **CRITICAL SCOPE HACK:** Because the target function and its required structs (like `Encoder`, `EncodeState`, `EncodeParent`) are internal and static, your code MUST start exactly with these lines to bypass scope limitations:
+
+```cpp
+#include "hjson.h"
+#include "../hjson-cpp/src/hjson_encode.cpp"
+#include <iostream>
+// Include other standard headers you need here
+using namespace Hjson;
+```
+
+DO NOT REDEFINE: Because you are including hjson_encode.cpp directly, you already have the real definitions. DO NOT redefine or declare Encoder, EncodeState, EncodeParent, or _writeValueBegin in your code. Simply instantiate and use them directly inside main().
+The code must be compilable.
+Do NOT provide any explanations.
+Return exactly one Markdown code block containing the complete C++ source code.

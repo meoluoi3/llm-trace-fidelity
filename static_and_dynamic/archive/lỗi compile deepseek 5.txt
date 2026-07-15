@@ -1,0 +1,8 @@
+E:\UET\LAB\llm-trace-fidelity\static_and_dynamic>python main.py
+=== LLM Trace Fidelity ===
+compiling test_main.cpp with hjson-cpp...
+compilation failed with errors:
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: C:\Users\hoang\AppData\Local\Temp\cclNj6L1.o: in function `_writeValueBegin':
+E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part5.cpp:74:(.text+0x295): undefined reference to `_quoteForComment(Encoder*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)'
+E:/Programs/msys64/ucrt64/bin/../lib/gcc/x86_64-w64-mingw32/15.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: E:/UET/LAB/llm-trace-fidelity/static_and_dynamic/deepseek_expert_part5.cpp:74:(.text+0x2b5): undefined reference to `_quote(Encoder*, Hjson::Value const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)'
+collect2.exe: error: ld returned 1 exit status

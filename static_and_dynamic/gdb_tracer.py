@@ -6,6 +6,7 @@ import sys
 trace_log = []
 step_count = 0
 last_seen_state = {}
+source_cache = {}
 
 WATCH_FILE = os.environ.get("WATCH_EXPRS_FILE", "watch_exprs.json")
 TARGET_FUNC = os.environ.get("TARGET_FUNCTION", "_writeValueBegin")
@@ -18,14 +19,36 @@ def read_state():
     state = {}
     for expr in EXPRS_TO_WATCH:
         try:
-            state[expr] = str(gdb.parse_and_eval(expr))
+            val = str(gdb.parse_and_eval(expr))
+            if "{" in val and "}" in val and "0x" in val and "<" in val:
+                continue  # Skip printing raw pointer addresses for structs/classes
+            if "non-dereferenceable" in val:
+                continue
+            state[expr] = val
         except gdb.error:
             pass  
     return state
 
+def get_source_line_text(filename, line_number):
+    """return the text of a specific line from a source file, using a cache to avoid repeated file reads."""
+    if not filename or not os.path.exists(filename):
+        return ""
+    
+    if filename not in source_cache:
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                source_cache[filename] = f.readlines()
+        except Exception:
+            return ""
+            
+    lines = source_cache[filename]
+    if 0 < line_number <= len(lines):
+        return lines[line_number - 1].strip()
+    return ""
 
 gdb.execute("set breakpoint pending on")
-gdb.execute(f"break {TARGET_FUNC}")
+# gdb.execute(f"break {TARGET_FUNC}")
+gdb.execute(f"break hjson_encode.cpp:{TARGET_FUNC}")
 gdb.execute("run")
 
 while True:
@@ -38,8 +61,12 @@ while True:
     if name is None or TARGET_FUNC not in name:
         break
 
-    line = frame.find_sal().line
+    sal = frame.find_sal()
+    line = sal.line
+    filename = sal.symtab.fullname() if sal.symtab else None
+    source_text = get_source_line_text(filename, line)
     current_state = read_state()
+
     step_count += 1
 
     changed_vars = {}
@@ -52,10 +79,10 @@ while True:
     last_seen_state.update(current_state)
 
     if changed_vars:
-        state_str = ", ".join([f"{k} = {v}" for k, v in changed_vars.items()])
-        log_entry = f"[Step {step_count}] Line {line}. Changes: {{ {state_str} }}"
+        state_str = "\n".join([f"{k} = {v}" for k, v in changed_vars.items()])
+        log_entry = f"[Step {step_count}] Line {line}. {source_text} : Changes: {{ {state_str} }}"
     else:
-        log_entry = f"[Step {step_count}] Line {line}. (No changes)"
+        log_entry = f"[Step {step_count}] Line {line}. {source_text} : (No changes)"
 
     trace_log.append(log_entry)
 

@@ -1,0 +1,199 @@
+#include "hjson.h"
+#include "../hjson-cpp/src/hjson_encode.cpp"
+#include <iostream>
+#include <cmath>
+#include <limits>
+
+using namespace Hjson;
+
+int main() {
+    // Test 1: Cover the comments branch and Type::Double branch (including nan/inf and allowMinusZero)
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.opt.allowMinusZero = false;
+        e.indent = 0;
+
+        // Create a double NaN value
+        Value valNaN(std::numeric_limits<double>::quiet_NaN());
+        valNaN.set_comment_key("/* key comment */");
+
+        EncodeParent parent(&valNaN);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test NaN: " << oss.str() << std::endl;
+    }
+
+    // Test 2: Type::Double with allowMinusZero and negative zero
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.opt.allowMinusZero = false;
+        e.indent = 0;
+
+        Value valNegZero(-0.0);
+        valNegZero.set_comment_key("/* neg zero */");
+
+        EncodeParent parent(&valNegZero);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test neg zero: " << oss.str() << std::endl;
+    }
+
+    // Test 3: Type::Double normal value
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.indent = 0;
+
+        Value valDouble(3.14);
+        valDouble.set_comment_key("/* pi */");
+
+        EncodeParent parent(&valDouble);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test double: " << oss.str() << std::endl;
+    }
+
+    // Test 4: Type::String
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.indent = 0;
+
+        Value valStr("hello world");
+        valStr.set_comment_key("/* string key */");
+        valStr.set_comment_after("/* after */");
+
+        EncodeParent parent(&valStr);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test string: " << oss.str() << std::endl;
+    }
+
+    // Test 5: Type::Vector
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.indent = 0;
+
+        Value valVec(Type::Vector);
+        valVec.set_comment_key("/* vec key */");
+        valVec.set_comment_inside("/* inside vec */");
+
+        EncodeParent parent(&valVec);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test vector: " << oss.str() << std::endl;
+        std::cout << "  indent after: " << e.indent << std::endl;
+        std::cout << "  state after: " << (int)e.vState.back() << std::endl;
+    }
+
+    // Test 6: Type::Map with omitRootBraces false
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.opt.omitRootBraces = false;
+        e.indent = 0;
+
+        Value valMap(Type::Map);
+        valMap.set_comment_key("/* map key */");
+        valMap.set_comment_inside("/* inside map */");
+
+        EncodeParent parent(&valMap);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test map (no omit): " << oss.str() << std::endl;
+    }
+
+    // Test 7: Type::Map with omitRootBraces true, parent size > 1
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.opt.omitRootBraces = true;
+        e.indent = 0;
+
+        Value valMap(Type::Map);
+        valMap.set_comment_key("/* map key */");
+        valMap.set_comment_inside("/* inside map */");
+
+        // Simulate nested by having multiple parents
+        Value dummy(Type::Map);
+        EncodeParent dummyParent(&dummy);
+        e.vParent.push_back(dummyParent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        EncodeParent parent(&valMap);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test map (nested omit): " << oss.str() << std::endl;
+    }
+
+    // Test 8: Type::Map with omitRootBraces true but empty map
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.opt.omitRootBraces = true;
+        e.indent = 0;
+
+        Value valMap(Type::Map);  // empty map
+
+        EncodeParent parent(&valMap);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test map (empty omit): " << oss.str() << std::endl;
+    }
+
+    // Test 9: default branch (e.g., Type::Null, Type::Boolean, Type::Int64)
+    {
+        Encoder e;
+        std::ostringstream oss;
+        e.os = &oss;
+        e.opt.comments = true;
+        e.indent = 0;
+
+        Value valBool(true);
+        valBool.set_comment_key("/* bool key */");
+
+        EncodeParent parent(&valBool);
+        e.vParent.push_back(parent);
+        e.vState.push_back(EncodeState::ValueBegin);
+
+        _writeValueBegin(&e);
+        std::cout << "Test bool (default): " << oss.str() << std::endl;
+    }
+
+    return 0;
+}

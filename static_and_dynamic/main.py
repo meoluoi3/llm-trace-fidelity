@@ -4,6 +4,7 @@ import glob
 
 def main():
     print("=== LLM Trace Fidelity ===")
+    
     # ==========================================
     # 1: TEST DRIVER
     # ==========================================
@@ -14,18 +15,20 @@ def main():
     # #     f.write(test_code)
     # print("created test_main.cpp for LLM-generated test driver.")
 
-    # # ==========================================
+    # ==========================================
     # 2: compile the test driver with hjson-cpp
     # ==========================================
     print("compiling test_main.cpp with hjson-cpp...")
     
     all_cpp_files = glob.glob("../hjson-cpp/src/*.cpp")
-    # Lọc bỏ file hjson_encode.cpp ra khỏi danh sách đem nộp
+    
+    # Filter out hjson_encode.cpp from the compilation list to avoid multiple definitions
+    # since it is included directly in the test driver.
     cpp_files = [f for f in all_cpp_files if "hjson_encode.cpp" not in f.replace('\\', '/')]
     
     compile_cmd = [
         "g++", "-g", "-O0", 
-        "deepseek_expert_part6.cpp"
+        "deepseekdouble.cpp"
     ] + cpp_files + [
         "-I", "../hjson-cpp/include/hjson", 
         "-o", "target.exe"
@@ -36,16 +39,16 @@ def main():
     if compile_result.returncode != 0:
         print("compilation failed with errors:")
         print(compile_result.stderr)
-        return # Dừng chương trình nếu lỗi
+        return # Stop execution if compilation fails
         
-    print("successfully compiled test_main.cpp with hjson-cpp into 'target' executable.")
+    print("successfully compiled test driver with hjson-cpp into 'target.exe' executable.")
 
     # ==========================================
     #  3: run GDB tracer on the compiled target
     # ==========================================
     print("running GDB tracer on the compiled target...")
     
-    # Xóa file trace cũ (nếu có) để tránh ghi đè lộn xộn
+    # Remove old trace file (if it exists) to avoid messy overwrites
     if os.path.exists("visited_trace.txt"):
         os.remove("visited_trace.txt")
 
