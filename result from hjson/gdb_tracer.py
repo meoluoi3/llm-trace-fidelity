@@ -17,7 +17,12 @@ def read_state():
     state = {}
     for expr in EXPRS_TO_WATCH:
         try:
-            state[expr] = str(gdb.parse_and_eval(expr))
+            val = str(gdb.parse_and_eval(expr))
+            if "{" in val and "}" in val and "0x" in val and "<" in val:
+                continue  # Skip printing raw pointer addresses for structs/classes
+            if "non-dereferenceable" in val:
+                continue
+            state[expr] = val
         except gdb.error:
             pass  # not in scope yet (e.g. before "value" is bound on line 1)
     return state

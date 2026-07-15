@@ -1,0 +1,29 @@
+1. Static Context Extraction
+
+* Đầu vào: File mã nguồn C++ và tên hàm mục tiêu.
+* Xử lý: Dùng thư viện Clang phân tích cây AST. Lọc và trích xuất nguyên văn mã nguồn của hàm mục tiêu cùng các Struct, Class, Enum liên quan.
+* Đầu ra: File text ngữ cảnh tĩnh (context.txt).
+
+2. Initial Code Generation
+
+* Đầu vào: Ngữ cảnh tĩnh từ Bước 1.
+* Xử lý: Gửi prompt kèm ngữ cảnh cho LLM để yêu cầu viết file test driver (test_main.cpp) nhằm kích hoạt một nhánh logic cụ thể.
+* Đầu ra: File mã nguồn test_main.cpp.
+
+3. Compilation
+
+* Đầu vào: test_main.cpp và mã nguồn thư viện.
+* Xử lý: Biên dịch mã nguồn bằng trình biên dịch (g++) với cờ debug (-g -O0) để giữ lại thông tin dòng lệnh và biến.
+* Đầu ra: File nhị phân thực thi (test.exe). Nếu có lỗi biên dịch (Compilation Error), gửi log lỗi lại cho LLM để sửa (quay lại Bước 2).
+
+4. Dynamic Execution Tracing
+
+* Đầu vào: File thực thi test.exe và tham số đầu vào.
+* Xử lý: Dùng GDB script chạy chương trình, đặt breakpoint tại hàm mục tiêu và step từng dòng. Lấy giá trị biến cục bộ, so sánh với bước trước (State Diffing) để lọc nhiễu.
+* Đầu ra: File log vết thực thi dạng văn bản (visited_trace.txt).
+
+5. Trace-Driven Reflection
+
+* Đầu vào: File log vết thực thi (visited_trace.txt).
+* Xử lý: Đánh giá luồng chạy thực tế. Nếu test case không đi vào đúng nhánh mục tiêu (ví dụ: bị rớt ở một câu lệnh if do biến bị gán sai), gộp log này vào prompt gửi lại cho LLM để sửa lỗi.
+* Đầu ra: Bản vá test_main.cpp mới. Vòng lặp quay lại Bước 3 cho đến khi test case đi đúng nhánh.
