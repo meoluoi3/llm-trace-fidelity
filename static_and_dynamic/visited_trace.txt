@@ -1,15 +1,15 @@
 [Step 1] Line 347. const Value &value = *e->vParent.back().pVal; : Changes: { EncodeState::MapElemBegin = Hjson::EncodeState::MapElemBegin (new)
 EncodeState::ValueEnd = Hjson::EncodeState::ValueEnd (new)
 EncodeState::VectorElemBegin = Hjson::EncodeState::VectorElemBegin (new)
-e = 0x5ffd00 (new)
+e = 0x5ffb50 (new)
 e->indent = 0 (new)
 e->opt.allowMinusZero = true (new)
 e->opt.comments = false (new)
 e->opt.omitRootBraces = false (new)
-e->os = 0x121a60 (new)
+e->os = 0x5ffcb0 (new)
 e->vParent.back().commentAfter = "" (new)
-value = @0x1 (new) }
-[Step 2] Line 349. if (e->opt.comments) { : Changes: { value = @0x5ffcd0 (changed) }
+value = @0x0 (new) }
+[Step 2] Line 349. if (e->opt.comments) { : Changes: { value = @0x5ffe30 (changed) }
 [Step 3] Line 353. switch (value.type()) { : (No changes)
 [Step 4] Line 355. if (std::isnan(static_cast<double>(value)) || std::isinf(static_cast<double>(value))) { : (No changes)
 [Step 5] Line 356. *e->os << Value(Type::Null).to_string(); : (No changes)

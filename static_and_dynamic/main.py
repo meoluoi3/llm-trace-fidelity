@@ -28,7 +28,7 @@ def main():
     
     compile_cmd = [
         "g++", "-g", "-O0", 
-        "deepseekinstantdouble3rd.cpp"
+        "gptdouble3rd.cpp"
     ] + cpp_files + [
         "-I", "../hjson-cpp/include/hjson", 
         "-o", "target.exe"
