@@ -1,0 +1,26 @@
+{
+  "target_line": 732,
+  "seed_vars": [
+    "StringEqual",
+    "XMLUtil",
+    "XMLUtil::StringEqual",
+    "commentHeader",
+    "commentHeaderLen",
+    "p",
+    "xmlHeader",
+    "xmlHeaderLen"
+  ],
+  "relevant_vars": [
+    "SkipWhiteSpace",
+    "StringEqual",
+    "XMLUtil",
+    "XMLUtil::SkipWhiteSpace",
+    "XMLUtil::StringEqual",
+    "_parseCurLineNum",
+    "commentHeader",
+    "commentHeaderLen",
+    "p",
+    "xmlHeader",
+    "xmlHeaderLen"
+  ]
+}

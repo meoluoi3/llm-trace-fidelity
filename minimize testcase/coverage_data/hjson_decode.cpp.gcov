@@ -1,0 +1,899 @@
+        -:    0:Source:../hjson-cpp/src/hjson_decode.cpp
+        -:    1:#include "hjson.h"
+        -:    2:#include <vector>
+        -:    3:#include <algorithm>
+        -:    4:#include <cctype>
+        -:    5:#include <cstring>
+        -:    6:#include <fstream>
+        -:    7:
+        -:    8:
+        -:    9:namespace Hjson {
+        -:   10:
+        -:   11:
+        -:   12:enum class ParseState {
+        -:   13:  ValueBegin,
+        -:   14:  ValueEnd,
+        -:   15:  VectorBegin,
+        -:   16:  VectorElemEnd,
+        -:   17:  MapBegin,
+        -:   18:  MapElemBegin,
+        -:   19:  MapElemEnd,
+        -:   20:};
+        -:   21:
+        -:   22:
+        -:   23:class CommentInfo {
+        -:   24:public:
+    #####:   25:  CommentInfo() : hasComment(false), cmStart(0), cmEnd(0) {}
+        -:   26:
+        -:   27:  bool hasComment;
+        -:   28:  // cmStart is the first char of the key, cmEnd is the first char after the key.
+        -:   29:  int cmStart, cmEnd;
+        -:   30:};
+        -:   31:
+        -:   32:
+        -:   33:class DecodeParent {
+        -:   34:public:
+        -:   35:  Value val;
+        -:   36:  CommentInfo ciBefore, ciKey, ciElemBefore, ciElemExtra;
+        -:   37:  std::string key;
+        -:   38:};
+        -:   39:
+        -:   40:
+        -:   41:class Parser {
+        -:   42:public:
+        -:   43:  const unsigned char *data;
+        -:   44:  size_t dataSize;
+        -:   45:  int indexNext;
+        -:   46:  unsigned char ch;
+        -:   47:  bool withoutBraces;
+        -:   48:  DecoderOptions opt;
+        -:   49:  std::vector<ParseState> vState;
+        -:   50:  std::vector<DecodeParent> vParent;
+        -:   51:};
+        -:   52:
+        -:   53:
+        -:   54:bool tryParseNumber(Value *pNumber, const char *text, size_t textSize, bool stopAtNext);
+        -:   55:
+        -:   56:
+    #####:   57:static inline void _setComment(Value& val, void (Value::*fp)(const std::string&),
+        -:   58:  Parser *p, const CommentInfo& ci)
+        -:   59:{
+    #####:   60:  if (ci.hasComment) {
+    #####:   61:    (val.*fp)(std::string(p->data + ci.cmStart, p->data + ci.cmEnd));
+        -:   62:  }
+    #####:   63:}
+        -:   64:
+        -:   65:
+    #####:   66:static inline void _setComment(Value& val, void (Value::*fp)(const std::string&),
+        -:   67:  Parser *p, const CommentInfo& ciA, const CommentInfo& ciB)
+        -:   68:{
+    #####:   69:  if (ciA.hasComment && ciB.hasComment) {
+    #####:   70:    (val.*fp)(std::string(p->data + ciA.cmStart, p->data + ciA.cmEnd) +
+    #####:   71:      std::string(p->data + ciB.cmStart, p->data + ciB.cmEnd));
+    #####:   72:  } else if (!ciA.hasComment && !ciB.hasComment) {
+    #####:   73:    (val.*fp)("");
+        -:   74:  } else {
+    #####:   75:    _setComment(val, fp, p, ciA);
+    #####:   76:    _setComment(val, fp, p, ciB);
+        -:   77:  }
+    #####:   78:}
+        -:   79:
+        -:   80:
+    #####:   81:static bool _next(Parser *p) {
+        -:   82:  // get the next character.
+    #####:   83:  if (p->indexNext < p->dataSize) {
+    #####:   84:    p->ch = p->data[p->indexNext++];
+    #####:   85:    return true;
+        -:   86:  }
+        -:   87:
+    #####:   88:  ++p->indexNext;
+    #####:   89:  p->ch = 0;
+        -:   90:
+    #####:   91:  return false;
+        -:   92:}
+        -:   93:
+        -:   94:
+    #####:   95:static bool _prev(Parser *p) {
+        -:   96:  // get the previous character.
+    #####:   97:  if (p->indexNext > 1) {
+    #####:   98:    p->ch = p->data[p->indexNext-- - 2];
+    #####:   99:    return true;
+        -:  100:  }
+        -:  101:
+    #####:  102:  return false;
+        -:  103:}
+        -:  104:
+        -:  105:
+    #####:  106:static void _resetAt(Parser *p) {
+    #####:  107:  p->indexNext = 0;
+    #####:  108:  _next(p);
+    #####:  109:}
+        -:  110:
+        -:  111:
+    #####:  112:static bool _isPunctuatorChar(char c) {
+    #####:  113:  return c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':';
+        -:  114:}
+        -:  115:
+        -:  116:
+    #####:  117:static std::string _errAt(Parser *p, const std::string& message) {
+    #####:  118:  if (p->dataSize && p->indexNext <= p->dataSize) {
+    #####:  119:    size_t decoderIndex = std::max(static_cast<size_t>(1), std::min(p->dataSize,
+    #####:  120:      static_cast<size_t>(p->indexNext))) - 1;
+    #####:  121:    size_t i = decoderIndex, col = 0, line = 1;
+        -:  122:
+    #####:  123:    for (; i > 0 && p->data[i] != '\n'; i--) {
+    #####:  124:      col++;
+        -:  125:    }
+        -:  126:
+    #####:  127:    for (; i > 0; i--) {
+    #####:  128:      if (p->data[i] == '\n') {
+    #####:  129:        line++;
+        -:  130:      }
+        -:  131:    }
+        -:  132:
+    #####:  133:    size_t samEnd = std::min((size_t)20, p->dataSize - (decoderIndex - col));
+        -:  134:
+    #####:  135:    return message + " at line " + std::to_string(line) + "," +
+    #####:  136:      std::to_string(col) + " >>> " + std::string((char*)p->data + decoderIndex - col, samEnd);
+        -:  137:  } else {
+    #####:  138:    return message;
+        -:  139:  }
+        -:  140:}
+        -:  141:
+        -:  142:
+    #####:  143:static unsigned char _peek(Parser *p, int offs) {
+    #####:  144:  int pos = p->indexNext + offs;
+        -:  145:
+    #####:  146:  if (pos >= 0 && pos < p->dataSize) {
+    #####:  147:    return p->data[pos];
+        -:  148:  }
+        -:  149:
+    #####:  150:  return 0;
+        -:  151:}
+        -:  152:
+        -:  153:
+    #####:  154:static unsigned char _escapee(unsigned char c) {
+    #####:  155:  switch (c)
+        -:  156:  {
+    #####:  157:  case '"':
+        -:  158:  case '\'':
+        -:  159:  case '\\':
+        -:  160:  case '/':
+    #####:  161:    return c;
+    #####:  162:  case 'b':
+    #####:  163:    return '\b';
+    #####:  164:  case 'f':
+    #####:  165:    return '\f';
+    #####:  166:  case 'n':
+    #####:  167:    return '\n';
+    #####:  168:  case 'r':
+    #####:  169:    return '\r';
+    #####:  170:  case 't':
+    #####:  171:    return '\t';
+        -:  172:  }
+        -:  173:
+    #####:  174:  return 0;
+        -:  175:}
+        -:  176:
+        -:  177:
+        -:  178:// Parse a multiline string value.
+    #####:  179:static std::string _readMLString(Parser *p) {
+        -:  180:  // Store the string in a new vector, because the length of it might be
+        -:  181:  // different than the length in the input data.
+    #####:  182:  std::vector<char> res;
+    #####:  183:  int triple = 0;
+        -:  184:
+        -:  185:  // we are at ''' +1 - get indent
+    #####:  186:  int indent = 0;
+        -:  187:
+        -:  188:  for (;;) {
+    #####:  189:    auto c = _peek(p, -indent - 5);
+    #####:  190:    if (c == 0 || c == '\n') {
+        -:  191:      break;
+        -:  192:    }
+    #####:  193:    indent++;
+    #####:  194:  }
+        -:  195:
+    #####:  196:  auto skipIndent = [&]() {
+    #####:  197:    auto skip = indent;
+    #####:  198:    while (p->ch > 0 && p->ch <= ' ' && p->ch != '\n' && skip > 0) {
+    #####:  199:      skip--;
+    #####:  200:      _next(p);
+        -:  201:    }
+    #####:  202:  };
+        -:  203:
+        -:  204:  // skip white/to (newline)
+    #####:  205:  while (p->ch > 0 && p->ch <= ' ' && p->ch != '\n') {
+    #####:  206:    _next(p);
+        -:  207:  }
+    #####:  208:  if (p->ch == '\n') {
+    #####:  209:    _next(p);
+    #####:  210:    skipIndent();
+        -:  211:  }
+        -:  212:
+        -:  213:  // When parsing multiline string values, we must look for ' characters.
+    #####:  214:  bool lastLf = false;
+        -:  215:  for (;;) {
+    #####:  216:    if (p->ch == 0) {
+    #####:  217:      throw syntax_error(_errAt(p, "Bad multiline string"));
+    #####:  218:    } else if (p->ch == '\'') {
+    #####:  219:      triple++;
+    #####:  220:      _next(p);
+    #####:  221:      if (triple == 3) {
+    #####:  222:        auto sres = res.data();
+    #####:  223:        if (lastLf) {
+    #####:  224:          return std::string(sres, res.size() - 1); // remove last EOL
+        -:  225:        }
+    #####:  226:        return std::string(sres, res.size());
+        -:  227:      }
+    #####:  228:      continue;
+    #####:  229:    } else {
+    #####:  230:      while (triple > 0) {
+    #####:  231:        res.push_back('\'');
+    #####:  232:        triple--;
+    #####:  233:        lastLf = false;
+        -:  234:      }
+        -:  235:    }
+    #####:  236:    if (p->ch == '\n') {
+    #####:  237:      res.push_back('\n');
+    #####:  238:      lastLf = true;
+    #####:  239:      _next(p);
+    #####:  240:      skipIndent();
+        -:  241:    } else {
+    #####:  242:      if (p->ch != '\r') {
+    #####:  243:        res.push_back(p->ch);
+    #####:  244:        lastLf = false;
+        -:  245:      }
+    #####:  246:      _next(p);
+        -:  247:    }
+    #####:  248:  }
+    #####:  249:}
+        -:  250:
+        -:  251:
+    #####:  252:static void _toUtf8(std::vector<char> &res, uint32_t uIn) {
+    #####:  253:  if (uIn < 0x80) {
+    #####:  254:    res.push_back(uIn);
+    #####:  255:  } else if (uIn < 0x800) {
+    #####:  256:    res.push_back(0xc0 | ((uIn >> 6) & 0x1f));
+    #####:  257:    res.push_back(0x80 | (uIn & 0x3f));
+    #####:  258:  } else if (uIn < 0x10000) {
+    #####:  259:    res.push_back(0xe0 | ((uIn >> 12) & 0xf));
+    #####:  260:    res.push_back(0x80 | ((uIn >> 6) & 0x3f));
+    #####:  261:    res.push_back(0x80 | (uIn & 0x3f));
+    #####:  262:  } else if (uIn < 0x110000) {
+    #####:  263:    res.push_back(0xf0 | ((uIn >> 18) & 0x7));
+    #####:  264:    res.push_back(0x80 | ((uIn >> 12) & 0x3f));
+    #####:  265:    res.push_back(0x80 | ((uIn >> 6) & 0x3f));
+    #####:  266:    res.push_back(0x80 | (uIn & 0x3f));
+        -:  267:  } else {
+    #####:  268:    throw std::logic_error("Invalid unicode code point");
+        -:  269:  }
+    #####:  270:}
+        -:  271:
+        -:  272:
+        -:  273:// Parse a string value.
+        -:  274:// callers make sure that (ch === '"' || ch === "'")
+        -:  275:// When parsing for string values, we must look for " and \ characters.
+    #####:  276:static std::string _readString(Parser *p, bool allowML) {
+        -:  277:  // Store the string in a new vector, because the length of it might be
+        -:  278:  // different than the length in the input data.
+    #####:  279:  std::vector<char> res;
+        -:  280:
+    #####:  281:  char exitCh = p->ch;
+    #####:  282:  while (_next(p)) {
+    #####:  283:    if (p->ch == exitCh) {
+    #####:  284:      _next(p);
+    #####:  285:      if (allowML && exitCh == '\'' && p->ch == '\'' && res.size() == 0) {
+        -:  286:        // ''' indicates a multiline string
+    #####:  287:        _next(p);
+    #####:  288:        return _readMLString(p);
+        -:  289:      } else {
+    #####:  290:        return std::string(res.data(), res.size());
+        -:  291:      }
+        -:  292:    }
+    #####:  293:    if (p->ch == '\\') {
+        -:  294:      unsigned char ech;
+    #####:  295:      _next(p);
+    #####:  296:      if (p->ch == 'u') {
+    #####:  297:        uint32_t uffff = 0;
+    #####:  298:        for (int i = 0; i < 4; i++) {
+    #####:  299:          _next(p);
+        -:  300:          unsigned char hex;
+    #####:  301:          if (p->ch >= '0' && p->ch <= '9') {
+    #####:  302:            hex = p->ch - '0';
+    #####:  303:          } else if (p->ch >= 'a' && p->ch <= 'f') {
+    #####:  304:            hex = p->ch - 'a' + 0xa;
+    #####:  305:          } else if (p->ch >= 'A' && p->ch <= 'F') {
+    #####:  306:            hex = p->ch - 'A' + 0xa;
+        -:  307:          } else {
+    #####:  308:            throw syntax_error(_errAt(p, std::string("Bad \\u char ") + (char)p->ch));
+        -:  309:          }
+    #####:  310:          uffff = uffff * 16 + hex;
+        -:  311:        }
+    #####:  312:        _toUtf8(res, uffff);
+    #####:  313:      } else if ((ech = _escapee(p->ch))) {
+    #####:  314:        res.push_back(ech);
+        -:  315:      } else {
+    #####:  316:        throw syntax_error(_errAt(p, std::string("Bad escape \\") + (char)p->ch));
+        -:  317:      }
+    #####:  318:    } else if (p->ch == '\n' || p->ch == '\r') {
+    #####:  319:      throw syntax_error(_errAt(p, "Bad string containing newline"));
+        -:  320:    } else {
+    #####:  321:      res.push_back(p->ch);
+        -:  322:    }
+        -:  323:  }
+        -:  324:
+    #####:  325:  throw syntax_error(_errAt(p, "Bad string"));
+    #####:  326:}
+        -:  327:
+        -:  328:
+        -:  329:// quotes for keys are optional in Hjson
+        -:  330:// unless they include {}[],: or whitespace.
+    #####:  331:static std::string _readKeyname(Parser *p) {
+    #####:  332:  if (p->ch == '"' || p->ch == '\'') {
+    #####:  333:    return _readString(p, false);
+        -:  334:  }
+        -:  335:
+        -:  336:  // keyStart is the index for the first char of the key.
+    #####:  337:  size_t keyStart = p->indexNext - 1;
+        -:  338:  // keyEnd is the index for the first char after the key (i.e. not included in the key).
+    #####:  339:  size_t keyEnd = keyStart;
+    #####:  340:  int firstSpace = -1;
+        -:  341:  for (;;) {
+    #####:  342:    if (p->ch == ':') {
+    #####:  343:      if (keyEnd <= keyStart) {
+    #####:  344:        throw syntax_error(_errAt(p, "Found ':' but no key name (for an empty key name use quotes)"));
+    #####:  345:      } else if (firstSpace >= 0 && firstSpace != keyEnd) {
+    #####:  346:        p->indexNext = firstSpace + 1;
+    #####:  347:        throw syntax_error(_errAt(p, "Found whitespace in your key name (use quotes to include)"));
+        -:  348:      }
+    #####:  349:      return std::string(reinterpret_cast<const char*>(p->data) + keyStart, keyEnd - keyStart);
+    #####:  350:    } else if (p->ch <= ' ') {
+    #####:  351:      if (p->ch == 0) {
+    #####:  352:        throw syntax_error(_errAt(p, "Found EOF while looking for a key name (check your syntax)"));
+        -:  353:      }
+    #####:  354:      if (firstSpace < 0) {
+    #####:  355:        firstSpace = p->indexNext - 1;
+        -:  356:      }
+        -:  357:    } else {
+    #####:  358:      if (_isPunctuatorChar(p->ch)) {
+    #####:  359:        throw syntax_error(_errAt(p, std::string("Found '") + (char)p->ch + std::string(
+    #####:  360:          "' where a key name was expected (check your syntax or use quotes if the key name includes {}[],: or whitespace)")));
+        -:  361:      }
+    #####:  362:      keyEnd = p->indexNext;
+        -:  363:    }
+    #####:  364:    _next(p);
+        -:  365:  }
+        -:  366:}
+        -:  367:
+        -:  368:
+    #####:  369:static CommentInfo _white(Parser *p) {
+    #####:  370:  CommentInfo ci;
+    #####:  371:  ci.cmStart = p->indexNext - 1;
+        -:  372:
+    #####:  373:  while (p->ch > 0) {
+        -:  374:    // Skip whitespace.
+    #####:  375:    while (p->ch > 0 && p->ch <= ' ') {
+    #####:  376:      _next(p);
+        -:  377:    }
+        -:  378:    // Hjson allows comments
+    #####:  379:    if (p->ch == '#' || (p->ch == '/' && _peek(p, 0) == '/')) {
+    #####:  380:      if (p->opt.comments) {
+    #####:  381:        ci.hasComment = true;
+        -:  382:      }
+    #####:  383:      while (p->ch > 0 && p->ch != '\n') {
+    #####:  384:        _next(p);
+        -:  385:      }
+    #####:  386:    } else if (p->ch == '/' && _peek(p, 0) == '*') {
+    #####:  387:      if (p->opt.comments) {
+    #####:  388:        ci.hasComment = true;
+        -:  389:      }
+    #####:  390:      _next(p);
+    #####:  391:      _next(p);
+    #####:  392:      while (p->ch > 0 && !(p->ch == '*' && _peek(p, 0) == '/')) {
+    #####:  393:        _next(p);
+        -:  394:      }
+    #####:  395:      if (p->ch > 0) {
+    #####:  396:        _next(p);
+    #####:  397:        _next(p);
+        -:  398:      }
+        -:  399:    } else {
+    #####:  400:      break;
+        -:  401:    }
+        -:  402:  }
+        -:  403:
+        -:  404:  // cmEnd is the first char after the comment (i.e. not included in the comment).
+    #####:  405:  ci.cmEnd = p->indexNext - 1;
+        -:  406:
+    #####:  407:  ci.hasComment = (ci.hasComment || (p->opt.whitespaceAsComments &&
+    #####:  408:    (ci.cmEnd > ci.cmStart)));
+        -:  409:
+    #####:  410:  return ci;
+        -:  411:}
+        -:  412:
+        -:  413:
+    #####:  414:static CommentInfo _getCommentAfter(Parser *p) {
+    #####:  415:  CommentInfo ci;
+    #####:  416:  ci.hasComment = p->opt.whitespaceAsComments;
+    #####:  417:  ci.cmStart = p->indexNext - 1;
+        -:  418:
+    #####:  419:  while (p->ch > 0) {
+        -:  420:    // Skip whitespace, but only until EOL.
+    #####:  421:    while (p->ch > 0 && p->ch <= ' ' && p->ch != '\n') {
+    #####:  422:      _next(p);
+        -:  423:    }
+        -:  424:    // Hjson allows comments
+    #####:  425:    if (p->ch == '#' || (p->ch == '/' && _peek(p, 0) == '/')) {
+    #####:  426:      if (p->opt.comments) {
+    #####:  427:        ci.hasComment = true;
+        -:  428:      }
+    #####:  429:      while (p->ch > 0 && p->ch != '\n') {
+    #####:  430:        _next(p);
+        -:  431:      }
+    #####:  432:    } else if (p->ch == '/' && _peek(p, 0) == '*') {
+    #####:  433:      if (p->opt.comments) {
+    #####:  434:        ci.hasComment = true;
+        -:  435:      }
+    #####:  436:      _next(p);
+    #####:  437:      _next(p);
+    #####:  438:      while (p->ch > 0 && !(p->ch == '*' && _peek(p, 0) == '/')) {
+    #####:  439:        _next(p);
+        -:  440:      }
+    #####:  441:      if (p->ch > 0) {
+    #####:  442:        _next(p);
+    #####:  443:        _next(p);
+        -:  444:      }
+        -:  445:    } else {
+    #####:  446:      break;
+        -:  447:    }
+        -:  448:  }
+        -:  449:
+        -:  450:  // cmEnd is the first char after the comment (i.e. not included in the comment).
+    #####:  451:  ci.cmEnd = p->indexNext - 1;
+        -:  452:
+    #####:  453:  return ci;
+        -:  454:}
+        -:  455:
+        -:  456:
+        -:  457:// Hjson strings can be quoteless
+        -:  458:// returns string, true, false, or null.
+    #####:  459:static Value _readTfnns2(Parser *p, size_t &valEnd) {
+    #####:  460:  if (_isPunctuatorChar(p->ch)) {
+    #####:  461:    throw syntax_error(_errAt(p, std::string("Found a punctuator character '") +
+    #####:  462:      (char)p->ch + std::string("' when expecting a quoteless string (check your syntax)")));
+        -:  463:  }
+    #####:  464:  size_t valStart = p->indexNext - 1;
+        -:  465:
+    #####:  466:  if (std::isspace(p->ch)) {
+    #####:  467:    ++valStart;
+        -:  468:  } else {
+        -:  469:    // valEnd is the first char after the value.
+    #####:  470:    valEnd = p->indexNext;
+        -:  471:  }
+        -:  472:
+        -:  473:  for (;;) {
+    #####:  474:    _next(p);
+    #####:  475:    bool isEol = (p->ch == '\r' || p->ch == '\n' || p->ch == 0);
+    #####:  476:    if (isEol ||
+    #####:  477:      p->ch == ',' || p->ch == '}' || p->ch == ']' ||
+    #####:  478:      p->ch == '#' ||
+    #####:  479:      (p->ch == '/' && (_peek(p, 0) == '/' || _peek(p, 0) == '*')))
+        -:  480:    {
+    #####:  481:      const char *pVal = reinterpret_cast<const char*>(p->data) + valStart;
+    #####:  482:      size_t valLen = valEnd - valStart;
+        -:  483:
+    #####:  484:      switch (*pVal)
+        -:  485:      {
+    #####:  486:      case 'f':
+    #####:  487:        if (valLen == 5 && !std::strncmp(pVal, "false", 5)) {
+    #####:  488:          return false;
+        -:  489:        }
+    #####:  490:        break;
+    #####:  491:      case 'n':
+    #####:  492:        if (valLen == 4 && !std::strncmp(pVal, "null", 4)) {
+    #####:  493:          return Value(Type::Null);
+        -:  494:        }
+    #####:  495:        break;
+    #####:  496:      case 't':
+    #####:  497:        if (valLen == 4 && !std::strncmp(pVal, "true", 4)) {
+    #####:  498:          return true;
+        -:  499:        }
+    #####:  500:        break;
+    #####:  501:      default:
+    #####:  502:        if (*pVal == '-' || (*pVal >= '0' && *pVal <= '9')) {
+    #####:  503:          Value number;
+    #####:  504:          if (tryParseNumber(&number, pVal, valLen, false)) {
+    #####:  505:            return number;
+        -:  506:          }
+    #####:  507:        }
+        -:  508:      }
+    #####:  509:      if (isEol) {
+    #####:  510:        return std::string(pVal, valLen);
+        -:  511:      }
+        -:  512:    }
+    #####:  513:    if (std::isspace(p->ch)) {
+    #####:  514:      if (valEnd <= valStart) {
+    #####:  515:        ++valStart;
+        -:  516:      }
+        -:  517:    } else {
+        -:  518:      // valEnd is the first char after the value.
+    #####:  519:      valEnd = p->indexNext;
+        -:  520:    }
+    #####:  521:  }
+        -:  522:}
+        -:  523:
+        -:  524:
+    #####:  525:static Value _readTfnns(Parser *p) {
+    #####:  526:  size_t valEnd = 0;
+    #####:  527:  auto ret = _readTfnns2(p, valEnd);
+        -:  528:  // Make sure that we include whitespace after the value in the after-comment.
+    #####:  529:  p->indexNext = static_cast<int>(valEnd);
+    #####:  530:  _next(p);
+    #####:  531:  return ret;
+        -:  532:}
+        -:  533:
+        -:  534:
+        -:  535:// Parse an array value.
+        -:  536:// assuming ch == '['
+    #####:  537:static void _readArrayBegin(Parser* p) {
+        -:  538:  // Skip '['.
+    #####:  539:  _next(p);
+        -:  540:
+    #####:  541:  p->vParent.back().val = Value(Type::Vector);
+    #####:  542:  p->vParent.back().ciElemBefore = _white(p);
+    #####:  543:  p->vParent.back().ciElemExtra = CommentInfo();
+        -:  544:
+    #####:  545:  if (p->ch == ']') {
+    #####:  546:    _setComment(p->vParent.back().val, &Value::set_comment_inside, p, p->vParent.back().ciElemBefore);
+    #####:  547:    _next(p);
+    #####:  548:    p->vState.back() = ParseState::ValueEnd;
+        -:  549:  } else {
+    #####:  550:    p->vState.back() = ParseState::VectorElemEnd;
+    #####:  551:    p->vState.push_back(ParseState::ValueBegin);
+        -:  552:  }
+    #####:  553:}
+        -:  554:
+        -:  555:
+    #####:  556:static void _readArrayElemEnd(Parser* p) {
+    #####:  557:  Value elem = p->vParent.back().val;
+    #####:  558:  p->vParent.pop_back();
+        -:  559:
+    #####:  560:  _setComment(elem, &Value::set_comment_before, p, p->vParent.back().ciElemBefore, p->vParent.back().ciElemExtra);
+    #####:  561:  auto ciAfter = _white(p);
+        -:  562:  // in Hjson the comma is optional and trailing commas are allowed
+    #####:  563:  if (p->ch == ',') {
+    #####:  564:    _next(p);
+        -:  565:    // It is unlikely that someone writes a comment after the value but
+        -:  566:    // before the comma, so we include any such comment in "comment_after".
+    #####:  567:    p->vParent.back().ciElemExtra = _white(p);
+        -:  568:  } else {
+    #####:  569:    p->vParent.back().ciElemExtra = CommentInfo();
+        -:  570:  }
+    #####:  571:  if (p->ch == ']') {
+    #####:  572:    auto existingAfter = elem.get_comment_after();
+    #####:  573:    _setComment(elem, &Value::set_comment_after, p, ciAfter, p->vParent.back().ciElemExtra);
+    #####:  574:    if (!existingAfter.empty()) {
+    #####:  575:      elem.set_comment_after(existingAfter + elem.get_comment_after());
+        -:  576:    }
+    #####:  577:    _next(p);
+    #####:  578:    p->vState.back() = ParseState::ValueEnd;
+    #####:  579:  } else {
+    #####:  580:    if (p->ch == 0) {
+    #####:  581:      throw syntax_error(_errAt(p, "End of input while parsing an array (did you forget a closing ']'?)"));
+        -:  582:    }
+    #####:  583:    p->vParent.back().ciElemBefore = ciAfter;
+    #####:  584:    p->vState.push_back(ParseState::ValueBegin);
+        -:  585:  }
+    #####:  586:  p->vParent.back().val.push_back(elem);
+    #####:  587:}
+        -:  588:
+        -:  589:
+    #####:  590:static void _readObjectBegin(Parser *p) {
+    #####:  591:  p->vParent.back().val = Value(Type::Map);
+        -:  592:
+    #####:  593:  if (p->ch == '{') {
+    #####:  594:    _next(p);
+    #####:  595:    p->vParent.back().ciElemBefore = _white(p);
+        -:  596:  } else {
+    #####:  597:    p->vParent.back().ciElemBefore = p->vParent.back().ciBefore;
+    #####:  598:    p->vParent.back().ciBefore = CommentInfo();
+        -:  599:  }
+        -:  600:
+        -:  601:
+    #####:  602:  if (p->ch == '}' && !(p->vParent.empty() && p->withoutBraces)) {
+    #####:  603:    _setComment(p->vParent.back().val, &Value::set_comment_inside, p, p->vParent.back().ciElemBefore);
+    #####:  604:    _next(p);
+    #####:  605:    p->vState.back() = ParseState::ValueEnd;
+        -:  606:  } else {
+    #####:  607:    p->vState.back() = ParseState::MapElemBegin;
+        -:  608:  }
+    #####:  609:}
+        -:  610:
+        -:  611:
+    #####:  612:static void _readObjectElemBegin(Parser* p) {
+    #####:  613:  Value &object = p->vParent.back().val;
+        -:  614:
+    #####:  615:  if (p->ch == 0) {
+    #####:  616:    if (p->vParent.size() == 1 && p->withoutBraces) {
+    #####:  617:      if (object.empty()) {
+    #####:  618:        _setComment(object, &Value::set_comment_inside, p, p->vParent.back().ciElemBefore);
+        -:  619:      } else {
+    #####:  620:        _setComment(object[static_cast<int>(object.size() - 1)],
+    #####:  621:          &Value::set_comment_after, p, p->vParent.back().ciElemBefore, p->vParent.back().ciElemExtra);
+        -:  622:      }
+    #####:  623:      p->vState.back() = ParseState::ValueEnd;
+    #####:  624:      return;
+        -:  625:    } else {
+    #####:  626:      throw syntax_error(_errAt(p, "End of input while parsing an object (did you forget a closing '}'?)"));
+        -:  627:    }
+        -:  628:  }
+        -:  629:
+    #####:  630:  p->vParent.back().key = _readKeyname(p);
+    #####:  631:  if (p->opt.duplicateKeyException && object[p->vParent.back().key].defined()) {
+    #####:  632:    throw syntax_error(_errAt(p, "Found duplicate of key '" + p->vParent.back().key + "'"));
+        -:  633:  }
+    #####:  634:  p->vParent.back().ciKey = _white(p);
+    #####:  635:  if (p->ch != ':') {
+    #####:  636:    throw syntax_error(_errAt(p, std::string(
+    #####:  637:      "Expected ':' instead of '") + (char)(p->ch) + "'"));
+        -:  638:  }
+    #####:  639:  _next(p);
+    #####:  640:  p->vState.back() = ParseState::MapElemEnd;
+    #####:  641:  p->vState.push_back(ParseState::ValueBegin);
+        -:  642:}
+        -:  643:
+        -:  644:
+    #####:  645:static void _readObjectElemEnd(Parser *p) {
+    #####:  646:  Value elem = p->vParent.back().val;
+    #####:  647:  p->vParent.pop_back();
+    #####:  648:  _setComment(elem, &Value::set_comment_key, p, p->vParent.back().ciKey);
+    #####:  649:  if (!elem.get_comment_before().empty()) {
+    #####:  650:    elem.set_comment_key(elem.get_comment_key() +
+    #####:  651:      elem.get_comment_before());
+    #####:  652:    elem.set_comment_before("");
+        -:  653:  }
+    #####:  654:  _setComment(elem, &Value::set_comment_before, p, p->vParent.back().ciElemBefore, p->vParent.back().ciElemExtra);
+    #####:  655:  auto ciAfter = _white(p);
+        -:  656:
+        -:  657:  // in Hjson the comma is optional and trailing commas are allowed
+    #####:  658:  if (p->ch == ',') {
+    #####:  659:    _next(p);
+        -:  660:    // It is unlikely that someone writes a comment after the value but
+        -:  661:    // before the comma, so we include any such comment in "comment_after".
+    #####:  662:    p->vParent.back().ciElemExtra = _white(p);
+        -:  663:  } else {
+    #####:  664:    p->vParent.back().ciElemExtra = {};
+        -:  665:  }
+        -:  666:
+    #####:  667:  if (p->ch == '}' && !(p->vParent.size() == 1 && p->withoutBraces)) {
+    #####:  668:    auto existingAfter = elem.get_comment_after();
+    #####:  669:    _setComment(elem, &Value::set_comment_after, p, ciAfter, p->vParent.back().ciElemExtra);
+    #####:  670:    if (!existingAfter.empty()) {
+    #####:  671:      elem.set_comment_after(existingAfter + elem.get_comment_after());
+        -:  672:    }
+    #####:  673:    p->vParent.back().val[p->vParent.back().key].assign_with_comments(std::move(elem));
+    #####:  674:    _next(p);
+    #####:  675:    p->vState.back() = ParseState::ValueEnd;
+    #####:  676:  } else {
+    #####:  677:    p->vParent.back().val[p->vParent.back().key].assign_with_comments(std::move(elem));
+    #####:  678:    p->vParent.back().ciElemBefore = ciAfter;
+    #####:  679:    p->vState.back() = ParseState::MapElemBegin;
+        -:  680:  }
+    #####:  681:}
+        -:  682:
+        -:  683:
+        -:  684:// Parse a Hjson value. It could be an object, an array, a string, a number or a word.
+    #####:  685:static void _readValueBegin(Parser *p) {
+    #####:  686:  p->vParent.push_back(DecodeParent());
+    #####:  687:  p->vParent.back().ciBefore = _white(p);
+        -:  688:
+    #####:  689:  switch (p->ch) {
+    #####:  690:  case '{':
+    #####:  691:    p->vState.back() = ParseState::MapBegin;
+    #####:  692:    break;
+    #####:  693:  case '[':
+    #####:  694:    p->vState.back() =  ParseState::VectorBegin;
+    #####:  695:    break;
+    #####:  696:  case '"':
+        -:  697:  case '\'':
+    #####:  698:    p->vParent.back().val.assign_with_comments(_readString(p, true));
+    #####:  699:    p->vState.back() = ParseState::ValueEnd;
+    #####:  700:    break;
+    #####:  701:  default:
+    #####:  702:    p->vParent.back().val.assign_with_comments(_readTfnns(p));
+    #####:  703:    p->vState.back() = ParseState::ValueEnd;
+    #####:  704:    break;
+        -:  705:  }
+    #####:  706:}
+        -:  707:
+        -:  708:
+    #####:  709:static void _readValueEnd(Parser *p) {
+    #####:  710:  auto ciAfter = _getCommentAfter(p);
+        -:  711:
+    #####:  712:  _setComment(p->vParent.back().val, &Value::set_comment_before, p, p->vParent.back().ciBefore);
+    #####:  713:  _setComment(p->vParent.back().val, &Value::set_comment_after, p, ciAfter);
+        -:  714:
+    #####:  715:  p->vState.pop_back();
+    #####:  716:}
+        -:  717:
+        -:  718:
+    #####:  719:static Value _hasTrailing(Parser *p, CommentInfo *ci) {
+    #####:  720:  *ci = _white(p);
+    #####:  721:  return p->ch > 0;
+        -:  722:}
+        -:  723:
+        -:  724:
+    #####:  725:static void _parseLoop(Parser* p) {
+    #####:  726:  while (!p->vState.empty()) {
+    #####:  727:    switch (p->vState.back()) {
+    #####:  728:    case ParseState::ValueBegin:
+    #####:  729:      _readValueBegin(p);
+    #####:  730:      break;
+    #####:  731:    case ParseState::ValueEnd:
+    #####:  732:      _readValueEnd(p);
+    #####:  733:      break;
+    #####:  734:    case ParseState::MapBegin:
+    #####:  735:      _readObjectBegin(p);
+    #####:  736:      break;
+    #####:  737:    case ParseState::MapElemBegin:
+    #####:  738:      _readObjectElemBegin(p);
+    #####:  739:      break;
+    #####:  740:    case ParseState::MapElemEnd:
+    #####:  741:      _readObjectElemEnd(p);
+    #####:  742:      break;
+    #####:  743:    case ParseState::VectorBegin:
+    #####:  744:      _readArrayBegin(p);
+    #####:  745:      break;
+    #####:  746:    case ParseState::VectorElemEnd:
+    #####:  747:      _readArrayElemEnd(p);
+    #####:  748:      break;
+        -:  749:    }
+        -:  750:  }
+    #####:  751:}
+        -:  752:
+        -:  753:
+        -:  754:// Braces for the root object are optional
+    #####:  755:static Value _rootValue(Parser *p) {
+    #####:  756:  CommentInfo ciExtra;
+        -:  757:
+    #####:  758:  p->vParent.push_back(DecodeParent());
+    #####:  759:  p->vParent.back().ciBefore = _white(p);
+        -:  760:
+    #####:  761:  if (p->ch == '[') {
+    #####:  762:    p->vState.push_back(ParseState::VectorBegin);
+        -:  763:  } else {
+    #####:  764:    if (p->ch != '{') {
+        -:  765:      // Assume root object without braces
+    #####:  766:      p->withoutBraces = true;
+        -:  767:    }
+    #####:  768:    p->vState.push_back(ParseState::MapBegin);
+        -:  769:  }
+        -:  770:
+        -:  771:  try {
+    #####:  772:    _parseLoop(p);
+    #####:  773:    if (_hasTrailing(p, &ciExtra)) {
+    #####:  774:      throw syntax_error(_errAt(p, "Syntax error, found trailing characters"));
+        -:  775:    }
+    =====:  776:  } catch (const syntax_error& e1) {
+    =====:  777:    if (p->withoutBraces) {
+        -:  778:      // test if we are dealing with a single JSON value instead (true/false/null/num/"")
+    =====:  779:      _resetAt(p);
+    =====:  780:      p->vParent.clear();
+    =====:  781:      p->vState.clear();
+    =====:  782:      p->vState.push_back(ParseState::ValueBegin);
+        -:  783:      try {
+    =====:  784:        _parseLoop(p);
+    =====:  785:        if (_hasTrailing(p, &ciExtra)) {
+    =====:  786:          throw syntax_error(_errAt(p, "Syntax error, found trailing characters"));
+        -:  787:        }
+    =====:  788:      } catch (const syntax_error&) {
+    =====:  789:        throw e1;
+    =====:  790:      }
+        -:  791:    } else {
+    =====:  792:      throw e1;
+        -:  793:    }
+    =====:  794:  }
+        -:  795:
+    #####:  796:  Value ret = p->vParent.back().val;
+    #####:  797:  if (ciExtra.hasComment) {
+    #####:  798:    auto existingAfter = ret.get_comment_after();
+    #####:  799:    _setComment(ret, &Value::set_comment_after, p, ciExtra);
+    #####:  800:    if (!existingAfter.empty()) {
+    #####:  801:      ret.set_comment_after(existingAfter + ret.get_comment_after());
+        -:  802:    }
+    #####:  803:  }
+        -:  804:
+    #####:  805:  return ret;
+    =====:  806:}
+        -:  807:
+        -:  808:
+        -:  809:// Unmarshal parses the Hjson-encoded data and returns a tree of Values.
+        -:  810://
+        -:  811:// Unmarshal uses the inverse of the encodings that Marshal uses.
+        -:  812://
+    #####:  813:Value Unmarshal(const char *data, size_t dataSize, const DecoderOptions& options) {
+    #####:  814:  Parser parser = {
+        -:  815:    (const unsigned char*) data,
+        -:  816:    dataSize,
+        -:  817:    0,
+        -:  818:    ' ',
+        -:  819:    false,
+        -:  820:    options
+    #####:  821:  };
+        -:  822:
+    #####:  823:  if (parser.opt.whitespaceAsComments) {
+    #####:  824:    parser.opt.comments = true;
+        -:  825:  }
+        -:  826:
+    #####:  827:  _resetAt(&parser);
+    #####:  828:  return _rootValue(&parser);
+    #####:  829:}
+        -:  830:
+        -:  831:
+    #####:  832:Value Unmarshal(const char *data, const DecoderOptions& options) {
+    #####:  833:  if (!data) {
+    #####:  834:    return Value();
+        -:  835:  }
+        -:  836:
+    #####:  837:  return Unmarshal(data, std::strlen(data), options);
+        -:  838:}
+        -:  839:
+        -:  840:
+    #####:  841:Value Unmarshal(const std::string &data, const DecoderOptions& options) {
+    #####:  842:  return Unmarshal(data.c_str(), data.size(), options);
+        -:  843:}
+        -:  844:
+        -:  845:
+    #####:  846:Value UnmarshalFromFile(const std::string &path, const DecoderOptions& options) {
+    #####:  847:  std::ifstream infile(path, std::ifstream::ate | std::ifstream::binary);
+    #####:  848:  if (!infile.is_open()) {
+    #####:  849:    throw file_error("Could not open file '" + path + "' for reading");
+        -:  850:  }
+    #####:  851:  std::string inStr;
+    #####:  852:  size_t len = infile.tellg();
+    #####:  853:  inStr.resize(len);
+    #####:  854:  infile.seekg(0, std::ios::beg);
+    #####:  855:  infile.read(&inStr[0], inStr.size());
+    #####:  856:  infile.close();
+        -:  857:
+    #####:  858:  while (len > 0 && inStr.at(len - 1) == '\0') {
+    #####:  859:    --len;
+        -:  860:  }
+        -:  861:
+    #####:  862:  if (len > 0 && inStr.at(len - 1) == '\n') {
+    #####:  863:    --len;
+        -:  864:  }
+    #####:  865:  if (len > 0 && inStr.at(len - 1) == '\r') {
+    #####:  866:    --len;
+        -:  867:  }
+        -:  868:
+    #####:  869:  return Unmarshal(inStr.c_str(), len, options);
+    #####:  870:}
+        -:  871:
+        -:  872:
+    #####:  873:StreamDecoder::StreamDecoder(Value& _v, const DecoderOptions& _o)
+    #####:  874:  : v(_v), o(_o)
+        -:  875:{
+    #####:  876:}
+        -:  877:
+        -:  878:
+    #####:  879:std::istream &operator >>(std::istream& in, StreamDecoder& sd) {
+    #####:  880:  std::string inStr{ std::istreambuf_iterator<char>(in),
+    #####:  881:    std::istreambuf_iterator<char>() };
+    #####:  882:  sd.v.assign_with_comments(Unmarshal(inStr, sd.o));
+        -:  883:
+    #####:  884:  return in;
+    #####:  885:}
+        -:  886:
+        -:  887:
+    #####:  888:std::istream &operator >>(std::istream& in, StreamDecoder&& sd) {
+    #####:  889:  return operator >>(in, sd);
+        -:  890:}
+        -:  891:
+        -:  892:
+    #####:  893:std::istream &operator >>(std::istream& in, Value& v) {
+    #####:  894:  return in >> StreamDecoder(v, DecoderOptions());
+        -:  895:}
+        -:  896:
+        -:  897:
+        -:  898:}

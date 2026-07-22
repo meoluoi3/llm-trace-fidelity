@@ -1,0 +1,86 @@
+// --- Class/Struct: Entity ---
+struct Entity {
+    const char* pattern;
+    int length;
+    char value;
+};
+
+// --- Function: Identify ---
+char* XMLDocument::Identify( char* p, XMLNode** node, bool first )
+{
+    TIXMLASSERT( node );
+    TIXMLASSERT( p );
+    char* const start = p;
+    int const startLine = _parseCurLineNum;
+    p = XMLUtil::SkipWhiteSpace( p, &_parseCurLineNum );
+    if( !*p ) {
+        *node = 0;
+        TIXMLASSERT( p );
+        return p;
+    }
+
+    // These strings define the matching patterns:
+    static const char* xmlHeader		= { "<?" };
+    static const char* commentHeader	= { "<!--" };
+    static const char* cdataHeader		= { "<![CDATA[" };
+    static const char* dtdHeader		= { "<!" };
+    static const char* elementHeader	= { "<" };	// and a header for everything else; check last.
+
+    static const int xmlHeaderLen		= 2;
+    static const int commentHeaderLen	= 4;
+    static const int cdataHeaderLen		= 9;
+    static const int dtdHeaderLen		= 2;
+    static const int elementHeaderLen	= 1;
+
+    TIXMLASSERT( sizeof( XMLComment ) == sizeof( XMLUnknown ) );		// use same memory pool
+    TIXMLASSERT( sizeof( XMLComment ) == sizeof( XMLDeclaration ) );	// use same memory pool
+    XMLNode* returnNode = 0;
+    if ( XMLUtil::StringEqual( p, xmlHeader, xmlHeaderLen ) ) {
+        returnNode = CreateUnlinkedNode<XMLDeclaration>( _commentPool );
+        returnNode->_parseLineNum = _parseCurLineNum;
+        p += xmlHeaderLen;
+    }
+    else if ( XMLUtil::StringEqual( p, commentHeader, commentHeaderLen ) ) {
+        returnNode = CreateUnlinkedNode<XMLComment>( _commentPool );
+        returnNode->_parseLineNum = _parseCurLineNum;
+        p += commentHeaderLen;
+    }
+    else if ( XMLUtil::StringEqual( p, cdataHeader, cdataHeaderLen ) ) {
+        XMLText* text = CreateUnlinkedNode<XMLText>( _textPool );
+        returnNode = text;
+        returnNode->_parseLineNum = _parseCurLineNum;
+        p += cdataHeaderLen;
+        text->SetCData( true );
+    }
+    else if ( XMLUtil::StringEqual( p, dtdHeader, dtdHeaderLen ) ) {
+        returnNode = CreateUnlinkedNode<XMLUnknown>( _commentPool );
+        returnNode->_parseLineNum = _parseCurLineNum;
+        p += dtdHeaderLen;
+    }
+    else if ( XMLUtil::StringEqual( p, elementHeader, elementHeaderLen ) ) {
+
+        // Preserve whitespace pedantically before closing tag, when it's immediately after opening tag
+        if (WhitespaceMode() == PEDANTIC_WHITESPACE && first && p != start && *(p + elementHeaderLen) == '/') {
+            returnNode = CreateUnlinkedNode<XMLText>(_textPool);
+            returnNode->_parseLineNum = startLine;
+            p = start;	// Back it up, all the text counts.
+            _parseCurLineNum = startLine;
+        }
+        else {
+            returnNode = CreateUnlinkedNode<XMLElement>(_elementPool);
+            returnNode->_parseLineNum = _parseCurLineNum;
+            p += elementHeaderLen;
+        }
+    }
+    else {
+        returnNode = CreateUnlinkedNode<XMLText>( _textPool );
+        returnNode->_parseLineNum = _parseCurLineNum; // Report line of first non-whitespace character
+        p = start;	// Back it up, all the text counts.
+        _parseCurLineNum = startLine;
+    }
+
+    TIXMLASSERT( returnNode );
+    TIXMLASSERT( p );
+    *node = returnNode;
+    return p;
+}

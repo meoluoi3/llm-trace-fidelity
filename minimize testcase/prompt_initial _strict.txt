@@ -1,0 +1,44 @@
+You are an expert C++ software engineer. Your task is to write a standalone test_main.cpp file to test and maximize code coverage for a target function, using the absolute minimum number of test calls and initializations.
+
+### CONTEXT
+The following context contains the exact definitions of the structs, classes, enums, and the focal function you need. It has been pre-extracted for you:
+{context}
+
+### OBJECTIVE
+Target Function: {focal_function}
+Target Goal: Cover every distinct branch listed below using exactly ONE function call per branch.
+
+### BRANCHES TO COVER (from static Control Flow analysis)
+{branch_list}
+
+### STRICT MINIMIZATION CONSTRAINTS (from Data Flow Graph static slicing)
+For each branch above, the DFG analysis has determined the exact variables that drive execution into that branch:
+{dfg_slice}
+
+1. You MUST strictly constrain your generated test inputs to target ONLY the logic flows involving these specific variables.
+2. For each call, initialize ONLY the variables listed for that specific branch in DFG_SLICE above.
+3. Do NOT initialize variables belonging to other branches.
+4. Keep the main() function bare-bones. Avoid unnecessary std::cout statements, assertions, or complex error handling.
+
+### INSTRUCTIONS
+- Write EXACTLY {num_branches} calls to {focal_function} inside main() — one per branch listed above, in the same order.
+- Do NOT add extra calls, duplicate branches, or "just in case" variations.
+- Ensure all arguments (e.g., pointers, objects, vectors) are properly initialized to avoid segmentation faults, even if a field is not in the DFG slice but is structurally required (e.g. a default-constructed member).
+
+### CRITICAL SCOPE HACK
+Because the target function and its required structs might be internal and static to their source file, your code MUST start exactly with these lines to bypass scope limitations:
+
+#include "hjson.h"
+#include "{target_cpp_path}"
+#include <iostream>
+// Include other standard headers you need here
+using namespace Hjson;
+
+DO NOT REDEFINE:
+Because you are including the source .cpp file directly, you already have the real definitions. DO NOT redefine or declare any internal structs, classes, or the target function in your code. Simply instantiate and use them directly inside main().
+
+The code must be compilable.
+
+Do NOT provide any explanations.
+
+Return exactly one Markdown code block containing the complete C++ source code.

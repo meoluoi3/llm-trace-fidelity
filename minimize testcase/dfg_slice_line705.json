@@ -1,0 +1,13 @@
+{
+  "target_line": 705,
+  "seed_vars": [
+    "p"
+  ],
+  "relevant_vars": [
+    "SkipWhiteSpace",
+    "XMLUtil",
+    "XMLUtil::SkipWhiteSpace",
+    "_parseCurLineNum",
+    "p"
+  ]
+}

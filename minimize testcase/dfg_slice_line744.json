@@ -1,0 +1,35 @@
+{
+  "target_line": 744,
+  "seed_vars": [
+    "StringEqual",
+    "XMLUtil",
+    "XMLUtil::StringEqual",
+    "cdataHeader",
+    "cdataHeaderLen",
+    "commentHeader",
+    "commentHeaderLen",
+    "dtdHeader",
+    "dtdHeaderLen",
+    "p",
+    "xmlHeader",
+    "xmlHeaderLen"
+  ],
+  "relevant_vars": [
+    "CDATA",
+    "SkipWhiteSpace",
+    "StringEqual",
+    "XMLUtil",
+    "XMLUtil::SkipWhiteSpace",
+    "XMLUtil::StringEqual",
+    "_parseCurLineNum",
+    "cdataHeader",
+    "cdataHeaderLen",
+    "commentHeader",
+    "commentHeaderLen",
+    "dtdHeader",
+    "dtdHeaderLen",
+    "p",
+    "xmlHeader",
+    "xmlHeaderLen"
+  ]
+}

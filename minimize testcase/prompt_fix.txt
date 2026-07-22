@@ -1,0 +1,19 @@
+You are a C++ debugging expert. The generated test driver failed to compile.
+PREVIOUS CODE
+
+{previous_code}
+COMPILER ERRORS
+
+{compiler_errors}
+CONTEXT REFERENCE
+
+{context}
+INSTRUCTIONS
+
+    Analyze the compiler errors. Common causes include missing initializations, private access violations, incorrect API usage, or missing headers.
+
+    Fix the C++ code so that it compiles successfully while maintaining the original testing objectives (maximizing coverage).
+
+    Do NOT provide any explanations.
+
+    Return exactly one Markdown code block containing the complete corrected C++ source code.

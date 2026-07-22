@@ -1,0 +1,229 @@
+        -:    0:Source:E:/Programs/msys64/ucrt64/include/c++/15.2.0/bits/postypes.h
+        -:    1:// Position types -*- C++ -*-
+        -:    2:
+        -:    3:// Copyright (C) 1997-2025 Free Software Foundation, Inc.
+        -:    4://
+        -:    5:// This file is part of the GNU ISO C++ Library.  This library is free
+        -:    6:// software; you can redistribute it and/or modify it under the
+        -:    7:// terms of the GNU General Public License as published by the
+        -:    8:// Free Software Foundation; either version 3, or (at your option)
+        -:    9:// any later version.
+        -:   10:
+        -:   11:// This library is distributed in the hope that it will be useful,
+        -:   12:// but WITHOUT ANY WARRANTY; without even the implied warranty of
+        -:   13:// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        -:   14:// GNU General Public License for more details.
+        -:   15:
+        -:   16:// Under Section 7 of GPL version 3, you are granted additional
+        -:   17:// permissions described in the GCC Runtime Library Exception, version
+        -:   18:// 3.1, as published by the Free Software Foundation.
+        -:   19:
+        -:   20:// You should have received a copy of the GNU General Public License and
+        -:   21:// a copy of the GCC Runtime Library Exception along with this program;
+        -:   22:// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+        -:   23:// <http://www.gnu.org/licenses/>.
+        -:   24:
+        -:   25:/** @file bits/postypes.h
+        -:   26: *  This is an internal header file, included by other library headers.
+        -:   27: *  Do not attempt to use it directly. @headername{iosfwd}
+        -:   28: */
+        -:   29:
+        -:   30://
+        -:   31:// ISO C++ 14882: 27.4.1 - Types
+        -:   32:// ISO C++ 14882: 27.4.3 - Template class fpos
+        -:   33://
+        -:   34:
+        -:   35:#ifndef _GLIBCXX_POSTYPES_H
+        -:   36:#define _GLIBCXX_POSTYPES_H 1
+        -:   37:
+        -:   38:#ifdef _GLIBCXX_SYSHDR
+        -:   39:#pragma GCC system_header
+        -:   40:#endif
+        -:   41:
+        -:   42:#include <cwchar> // For mbstate_t
+        -:   43:
+        -:   44:namespace std _GLIBCXX_VISIBILITY(default)
+        -:   45:{
+        -:   46:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -:   47:
+        -:   48:  // The types streamoff, streampos and wstreampos and the class
+        -:   49:  // template fpos<> are described in clauses 21.1.2, 21.1.3, 27.1.2,
+        -:   50:  // 27.2, 27.4.1, 27.4.3 and D.6. Despite all this verbiage, the
+        -:   51:  // behaviour of these types is mostly implementation defined or
+        -:   52:  // unspecified. The behaviour in this implementation is as noted
+        -:   53:  // below.
+        -:   54:
+        -:   55:#pragma GCC diagnostic push
+        -:   56:#pragma GCC diagnostic ignored "-Wlong-long"
+        -:   57:  /**
+        -:   58:   *  @brief  Type used by fpos, char_traits<char>, and char_traits<wchar_t>.
+        -:   59:   *
+        -:   60:   *  In clauses 21.1.3.1 and 27.4.1 streamoff is described as an
+        -:   61:   *  implementation defined type.
+        -:   62:   *  Note: In versions of GCC up to and including GCC 3.3, streamoff
+        -:   63:   *  was typedef long.
+        -:   64:  */
+        -:   65:#ifdef __INT64_TYPE__
+        -:   66:  typedef __INT64_TYPE__          streamoff;
+        -:   67:#else
+        -:   68:  typedef long long     streamoff;
+        -:   69:#endif
+        -:   70:#pragma GCC diagnostic pop
+        -:   71:
+        -:   72:  /// Integral type for I/O operation counts and buffer sizes.
+        -:   73:  typedef ptrdiff_t	streamsize; // Signed integral type
+        -:   74:
+        -:   75:  /**
+        -:   76:   *  @brief  Class representing stream positions.
+        -:   77:   *
+        -:   78:   *  The standard places no requirements upon the template parameter StateT.
+        -:   79:   *  In this implementation StateT must be DefaultConstructible,
+        -:   80:   *  CopyConstructible and Assignable.  The standard only requires that fpos
+        -:   81:   *  should contain a member of type StateT. In this implementation it also
+        -:   82:   *  contains an offset stored as a signed integer.
+        -:   83:   *
+        -:   84:   *  @param  StateT  Type passed to and returned from state().
+        -:   85:   */
+        -:   86:  template<typename _StateT>
+        -:   87:    class fpos
+        -:   88:    {
+        -:   89:    private:
+        -:   90:      streamoff	                _M_off;
+        -:   91:      _StateT			_M_state;
+        -:   92:
+        -:   93:    public:
+        -:   94:      // The standard doesn't require that fpos objects can be default
+        -:   95:      // constructed. This implementation provides a default
+        -:   96:      // constructor that initializes the offset to 0 and default
+        -:   97:      // constructs the state.
+        -:   98:      fpos()
+        -:   99:      : _M_off(0), _M_state() { }
+        -:  100:
+        -:  101:      // The standard requires that fpos objects can be constructed
+        -:  102:      // from streamoff objects using the constructor syntax, and
+        -:  103:      // fails to give any meaningful semantics. In this
+        -:  104:      // implementation implicit conversion is also allowed, and this
+        -:  105:      // constructor stores the streamoff as the offset and default
+        -:  106:      // constructs the state.
+        -:  107:      /// Construct position from offset.
+        -:  108:      fpos(streamoff __off)
+        -:  109:      : _M_off(__off), _M_state() { }
+        -:  110:
+        -:  111:#if __cplusplus >= 201103L
+        -:  112:      fpos(const fpos&) = default;
+        -:  113:      fpos& operator=(const fpos&) = default;
+        -:  114:      ~fpos() = default;
+        -:  115:#endif
+        -:  116:
+        -:  117:      /// Convert to streamoff.
+    #####:  118:      operator streamoff() const { return _M_off; }
+        -:  119:
+        -:  120:      /// Remember the value of @a st.
+        -:  121:      void
+        -:  122:      state(_StateT __st)
+        -:  123:      { _M_state = __st; }
+        -:  124:
+        -:  125:      /// Return the last set value of @a st.
+        -:  126:      _StateT
+        -:  127:      state() const
+        -:  128:      { return _M_state; }
+        -:  129:
+        -:  130:      // The standard requires that this operator must be defined, but
+        -:  131:      // gives no semantics. In this implementation it just adds its
+        -:  132:      // argument to the stored offset and returns *this.
+        -:  133:      /// Add offset to this position.
+        -:  134:      fpos&
+        -:  135:      operator+=(streamoff __off)
+        -:  136:      {
+        -:  137:	_M_off += __off;
+        -:  138:	return *this;
+        -:  139:      }
+        -:  140:
+        -:  141:      // The standard requires that this operator must be defined, but
+        -:  142:      // gives no semantics. In this implementation it just subtracts
+        -:  143:      // its argument from the stored offset and returns *this.
+        -:  144:      /// Subtract offset from this position.
+        -:  145:      fpos&
+        -:  146:      operator-=(streamoff __off)
+        -:  147:      {
+        -:  148:	_M_off -= __off;
+        -:  149:	return *this;
+        -:  150:      }
+        -:  151:
+        -:  152:      // The standard requires that this operator must be defined, but
+        -:  153:      // defines its semantics only in terms of operator-. In this
+        -:  154:      // implementation it constructs a copy of *this, adds the
+        -:  155:      // argument to that copy using operator+= and then returns the
+        -:  156:      // copy.
+        -:  157:      /// Add position and offset.
+        -:  158:      fpos
+        -:  159:      operator+(streamoff __off) const
+        -:  160:      {
+        -:  161:	fpos __pos(*this);
+        -:  162:	__pos += __off;
+        -:  163:	return __pos;
+        -:  164:      }
+        -:  165:
+        -:  166:      // The standard requires that this operator must be defined, but
+        -:  167:      // defines its semantics only in terms of operator+. In this
+        -:  168:      // implementation it constructs a copy of *this, subtracts the
+        -:  169:      // argument from that copy using operator-= and then returns the
+        -:  170:      // copy.
+        -:  171:      /// Subtract offset from position.
+        -:  172:      fpos
+        -:  173:      operator-(streamoff __off) const
+        -:  174:      {
+        -:  175:	fpos __pos(*this);
+        -:  176:	__pos -= __off;
+        -:  177:	return __pos;
+        -:  178:      }
+        -:  179:
+        -:  180:      // The standard requires that this operator must be defined, but
+        -:  181:      // defines its semantics only in terms of operator+. In this
+        -:  182:      // implementation it returns the difference between the offset
+        -:  183:      // stored in *this and in the argument.
+        -:  184:      /// Subtract position to return offset.
+        -:  185:      streamoff
+        -:  186:      operator-(const fpos& __other) const
+        -:  187:      { return _M_off - __other._M_off; }
+        -:  188:    };
+        -:  189:
+        -:  190:  // The standard only requires that operator== must be an
+        -:  191:  // equivalence relation. In this implementation two fpos<StateT>
+        -:  192:  // objects belong to the same equivalence class if the contained
+        -:  193:  // offsets compare equal.
+        -:  194:  /// Test if equivalent to another position.
+        -:  195:  template<typename _StateT>
+        -:  196:    inline bool
+        -:  197:    operator==(const fpos<_StateT>& __lhs, const fpos<_StateT>& __rhs)
+        -:  198:    { return streamoff(__lhs) == streamoff(__rhs); }
+        -:  199:
+        -:  200:  template<typename _StateT>
+        -:  201:    inline bool
+        -:  202:    operator!=(const fpos<_StateT>& __lhs, const fpos<_StateT>& __rhs)
+        -:  203:    { return streamoff(__lhs) != streamoff(__rhs); }
+        -:  204:
+        -:  205:  // Clauses 21.1.3.1 and 21.1.3.2 describe streampos and wstreampos
+        -:  206:  // as implementation defined types, but clause 27.2 requires that
+        -:  207:  // they must both be typedefs for fpos<mbstate_t>
+        -:  208:  /// File position for char streams.
+        -:  209:  typedef fpos<mbstate_t> streampos;
+        -:  210:  /// File position for wchar_t streams.
+        -:  211:  typedef fpos<mbstate_t> wstreampos;
+        -:  212:
+        -:  213:#ifdef _GLIBCXX_USE_CHAR8_T
+        -:  214:  /// File position for char8_t streams.
+        -:  215:  typedef fpos<mbstate_t> u8streampos;
+        -:  216:#endif
+        -:  217:
+        -:  218:#if __cplusplus >= 201103L
+        -:  219:  /// File position for char16_t streams.
+        -:  220:  typedef fpos<mbstate_t> u16streampos;
+        -:  221:  /// File position for char32_t streams.
+        -:  222:  typedef fpos<mbstate_t> u32streampos;
+        -:  223:#endif
+        -:  224:
+        -:  225:_GLIBCXX_END_NAMESPACE_VERSION
+        -:  226:} // namespace
+        -:  227:
+        -:  228:#endif

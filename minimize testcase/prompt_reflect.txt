@@ -1,0 +1,23 @@
+You are an expert C++ dynamic analysis engineer. Your previous test driver compiled successfully, but it failed to reach the intended coverage goals.
+TARGET GOAL
+
+{target_branch}
+PREVIOUS CODE
+
+{previous_code}
+DYNAMIC EXECUTION TRACE
+
+The following execution trace shows exactly what happened during runtime, including the local-variable state changes (State Diff):
+
+{visited_trace}
+INSTRUCTIONS
+
+    Analyze the execution trace to determine why the execution diverged from certain unvisited branches.
+
+    Modify the object initialization and input construction in the previous test driver to satisfy the required branch conditions that were missed.
+
+    Preserve as much of the previous valid test driver logic as possible.
+
+    Do NOT provide any explanations.
+
+    Return exactly one Markdown code block containing the complete revised C++ source code.

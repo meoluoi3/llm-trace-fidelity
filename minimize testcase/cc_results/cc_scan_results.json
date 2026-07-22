@@ -1,0 +1,26 @@
+[
+  {
+    "function": "callfopen",
+    "file": "../tinyxml2/tinyxml2.cpp",
+    "cc": 4,
+    "start_line": 2316,
+    "end_line": 2330,
+    "loc": 15
+  },
+  {
+    "function": "TIXML_SNPRINTF",
+    "file": "../tinyxml2/tinyxml2.cpp",
+    "cc": 1,
+    "start_line": 56,
+    "end_line": 63,
+    "loc": 8
+  },
+  {
+    "function": "TIXML_VSNPRINTF",
+    "file": "../tinyxml2/tinyxml2.cpp",
+    "cc": 1,
+    "start_line": 65,
+    "end_line": 69,
+    "loc": 5
+  }
+]

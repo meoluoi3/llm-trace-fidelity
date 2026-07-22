@@ -1,0 +1,2 @@
+filename,line_total,line_covered,line_percent,branch_total,branch_covered,branch_percent,function_total,function_covered,function_percent
+tinyxml2/tinyxml2.cpp,1476,140,0.095,922,37,0.04,202,21,0.10400000000000001

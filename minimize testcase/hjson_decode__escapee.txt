@@ -1,0 +1,65 @@
+// --- ENUM_DECL: ParseState ---
+enum class ParseState {
+  ValueBegin,
+  ValueEnd,
+  VectorBegin,
+  VectorElemEnd,
+  MapBegin,
+  MapElemBegin,
+  MapElemEnd,
+};
+
+// --- Class/Struct: CommentInfo ---
+class CommentInfo {
+public:
+  CommentInfo() : hasComment(false), cmStart(0), cmEnd(0) {}
+
+  bool hasComment;
+  // cmStart is the first char of the key, cmEnd is the first char after the key.
+  int cmStart, cmEnd;
+};
+
+// --- Class/Struct: DecodeParent ---
+class DecodeParent {
+public:
+  Value val;
+  CommentInfo ciBefore, ciKey, ciElemBefore, ciElemExtra;
+  std::string key;
+};
+
+// --- Class/Struct: Parser ---
+class Parser {
+public:
+  const unsigned char *data;
+  size_t dataSize;
+  int indexNext;
+  unsigned char ch;
+  bool withoutBraces;
+  DecoderOptions opt;
+  std::vector<ParseState> vState;
+  std::vector<DecodeParent> vParent;
+};
+
+// --- Function: _escapee ---
+static unsigned char _escapee(unsigned char c) {
+  switch (c)
+  {
+  case '"':
+  case '\'':
+  case '\\':
+  case '/':
+    return c;
+  case 'b':
+    return '\b';
+  case 'f':
+    return '\f';
+  case 'n':
+    return '\n';
+  case 'r':
+    return '\r';
+  case 't':
+    return '\t';
+  }
+
+  return 0;
+}

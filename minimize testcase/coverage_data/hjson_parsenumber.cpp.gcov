@@ -1,0 +1,184 @@
+        -:    0:Source:../hjson-cpp/src/hjson_parsenumber.cpp
+        -:    1:#include "hjson.h"
+        -:    2:#include <cmath>
+        -:    3:#if HJSON_USE_CHARCONV
+        -:    4:# include <charconv>
+        -:    5:#elif HJSON_USE_STRTOD
+        -:    6:# include <cstdlib>
+        -:    7:# include <cerrno>
+        -:    8:#else
+        -:    9:# include <sstream>
+        -:   10:#endif
+        -:   11:
+        -:   12:
+        -:   13:namespace Hjson {
+        -:   14:
+        -:   15:
+        -:   16:struct NumberParser {
+        -:   17:  const unsigned char *data;
+        -:   18:  size_t dataSize;
+        -:   19:  int indexNext;
+        -:   20:  unsigned char ch;
+        -:   21:};
+        -:   22:
+        -:   23:
+        6:   24:static bool _parseFloat(double *pNumber, const char *pCh, size_t nCh) {
+        -:   25:#if HJSON_USE_CHARCONV
+        -:   26:  auto res = std::from_chars(pCh, pCh + nCh, *pNumber);
+        -:   27:
+        -:   28:  return res.ptr == pCh + nCh && res.ec != std::errc::result_out_of_range &&
+        -:   29:    !std::isinf(*pNumber) && !std::isnan(*pNumber);
+        -:   30:#elif HJSON_USE_STRTOD
+        -:   31:  char *endptr;
+        -:   32:  errno = 0;
+        -:   33:  *pNumber = std::strtod(pCh, &endptr);
+        -:   34:
+        -:   35:  return !errno && endptr - pCh == nCh && !std::isinf(*pNumber) && !std::isnan(*pNumber);
+        -:   36:#else
+        6:   37:  std::string str(pCh, nCh);
+        6:   38:  std::stringstream ss(str);
+        -:   39:
+        -:   40:  // Make sure we expect dot (not comma) as decimal point.
+        6:   41:  ss.imbue(std::locale::classic());
+        -:   42:
+        6:   43:  ss >> *pNumber;
+        -:   44:
+       12:   45:  return ss.eof() && !ss.fail() && !std::isinf(*pNumber) && !std::isnan(*pNumber);
+        -:   46:#endif
+        6:   47:}
+        -:   48:
+        -:   49:
+       19:   50:static bool _parseInt(std::int64_t *pNumber, const char *pCh, size_t nCh) {
+        -:   51:#if HJSON_USE_CHARCONV
+        -:   52:  auto res = std::from_chars(pCh, pCh + nCh, *pNumber);
+        -:   53:
+        -:   54:  return res.ptr == pCh + nCh && res.ec != std::errc::result_out_of_range;
+        -:   55:#elif HJSON_USE_STRTOD
+        -:   56:  char *endptr;
+        -:   57:  errno = 0;
+        -:   58:  *pNumber = std::strtoll(pCh, &endptr, 0);
+        -:   59:
+        -:   60:  return !errno && endptr - pCh == nCh;
+        -:   61:#else
+       19:   62:  std::string str(pCh, nCh);
+       19:   63:  std::stringstream ss(str);
+        -:   64:
+        -:   65:  // Avoid localization surprises.
+       19:   66:  ss.imbue(std::locale::classic());
+        -:   67:
+       19:   68:  ss >> *pNumber;
+        -:   69:
+       38:   70:  return ss.eof() && !ss.fail();
+        -:   71:#endif
+       19:   72:}
+        -:   73:
+        -:   74:
+       98:   75:static bool _next(NumberParser *p) {
+        -:   76:  // get the next character.
+       98:   77:  if (p->indexNext < p->dataSize) {
+       80:   78:    p->ch = p->data[p->indexNext++];
+       80:   79:    return true;
+        -:   80:  }
+        -:   81:
+       18:   82:  if (p->indexNext == p->dataSize) {
+       18:   83:    p->indexNext++;
+        -:   84:  }
+        -:   85:
+       18:   86:  p->ch = 0;
+        -:   87:
+       18:   88:  return false;
+        -:   89:}
+        -:   90:
+        -:   91:
+        -:   92:// Parse a number value. The parameter "text" must be zero terminated.
+       26:   93:bool tryParseNumber(Value *pValue, const char *text, size_t textSize, bool stopAtNext) {
+       26:   94:  NumberParser p = {
+        -:   95:    (const unsigned char*) text,
+        -:   96:    textSize,
+        -:   97:    0,
+        -:   98:    ' '
+       26:   99:  };
+        -:  100:
+       26:  101:  int leadingZeros = 0;
+       26:  102:  bool testLeading = true;
+        -:  103:
+       26:  104:  _next(&p);
+        -:  105:
+       26:  106:  if (p.ch == '-') {
+        3:  107:    _next(&p);
+        -:  108:  }
+        -:  109:
+       72:  110:  while (p.ch >= '0' && p.ch <= '9') {
+       46:  111:    if (testLeading) {
+       26:  112:      if (p.ch == '0') {
+        6:  113:        leadingZeros++;
+        -:  114:      } else {
+       20:  115:        testLeading = false;
+        -:  116:      }
+        -:  117:    }
+       46:  118:    _next(&p);
+        -:  119:  }
+        -:  120:
+       26:  121:  if (testLeading) {
+        6:  122:    leadingZeros--;
+        -:  123:  } // single 0 is allowed
+        -:  124:
+       26:  125:  if (p.ch == '.') {
+        9:  126:    while (_next(&p) && p.ch >= '0' && p.ch <= '9') {
+        -:  127:    }
+        -:  128:  }
+       26:  129:  if (p.ch == 'e' || p.ch == 'E') {
+        5:  130:    _next(&p);
+        5:  131:    if (p.ch == '-' || p.ch == '+') {
+        3:  132:      _next(&p);
+        -:  133:    }
+        9:  134:    while (p.ch >= '0' && p.ch <= '9') {
+        4:  135:      _next(&p);
+        -:  136:    }
+        -:  137:  }
+        -:  138:
+       26:  139:  auto end = p.indexNext;
+        -:  140:
+        -:  141:  // skip white/to (newline)
+       28:  142:  while (p.ch > 0 && p.ch <= ' ') {
+        2:  143:    _next(&p);
+        -:  144:  }
+        -:  145:
+       26:  146:  if (stopAtNext) {
+        -:  147:    // end scan if we find a punctuator character like ,}] or a comment
+        7:  148:    if (p.ch == ',' || p.ch == '}' || p.ch == ']' ||
+        4:  149:      p.ch == '#' || (p.indexNext < textSize && p.ch == '/' &&
+        2:  150:      (p.data[p.indexNext] == '/' || p.data[p.indexNext] == '*')))
+        -:  151:    {
+        6:  152:      p.ch = 0;
+        -:  153:    }
+        -:  154:  }
+        -:  155:
+       26:  156:  if (p.ch > 0 || leadingZeros != 0) {
+        -:  157:    // Invalid number.
+        7:  158:    return false;
+        -:  159:  }
+        -:  160:
+        -:  161:  std::int64_t i;
+       19:  162:  if (_parseInt(&i, (char*) p.data, end - 1)) {
+       13:  163:    *pValue = Value(i);
+       13:  164:    return true;
+        -:  165:  } else {
+        -:  166:    double d;
+        6:  167:    if (_parseFloat(&d, (char*) p.data, end - 1)) {
+        4:  168:      *pValue = Value(d);
+        4:  169:      return true;
+        -:  170:    }
+        -:  171:  }
+        -:  172:
+        2:  173:  return false;
+        -:  174:}
+        -:  175:
+        -:  176:
+    #####:  177:bool startsWithNumber(const char *text, size_t textSize) {
+    #####:  178:  Value number;
+    #####:  179:  return tryParseNumber(&number, text, textSize, true);
+    #####:  180:}
+        -:  181:
+        -:  182:
+        -:  183:}

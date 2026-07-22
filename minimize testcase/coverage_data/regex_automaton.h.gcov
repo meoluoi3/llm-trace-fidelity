@@ -1,0 +1,406 @@
+        -:    0:Source:E:/Programs/msys64/ucrt64/include/c++/15.2.0/bits/regex_automaton.h
+        -:    1:// class template regex -*- C++ -*-
+        -:    2:
+        -:    3:// Copyright (C) 2013-2025 Free Software Foundation, Inc.
+        -:    4://
+        -:    5:// This file is part of the GNU ISO C++ Library.  This library is free
+        -:    6:// software; you can redistribute it and/or modify it under the
+        -:    7:// terms of the GNU General Public License as published by the
+        -:    8:// Free Software Foundation; either version 3, or (at your option)
+        -:    9:// any later version.
+        -:   10:
+        -:   11:// This library is distributed in the hope that it will be useful,
+        -:   12:// but WITHOUT ANY WARRANTY; without even the implied warranty of
+        -:   13:// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        -:   14:// GNU General Public License for more details.
+        -:   15:
+        -:   16:// Under Section 7 of GPL version 3, you are granted additional
+        -:   17:// permissions described in the GCC Runtime Library Exception, version
+        -:   18:// 3.1, as published by the Free Software Foundation.
+        -:   19:
+        -:   20:// You should have received a copy of the GNU General Public License and
+        -:   21:// a copy of the GCC Runtime Library Exception along with this program;
+        -:   22:// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+        -:   23:// <http://www.gnu.org/licenses/>.
+        -:   24:
+        -:   25:/**
+        -:   26: *  @file bits/regex_automaton.h
+        -:   27: *  This is an internal header file, included by other library headers.
+        -:   28: *  Do not attempt to use it directly. @headername{regex}
+        -:   29: */
+        -:   30:
+        -:   31:// This macro defines the maximal state number a NFA can have.
+        -:   32:#ifndef _GLIBCXX_REGEX_STATE_LIMIT
+        -:   33:#define _GLIBCXX_REGEX_STATE_LIMIT 100000
+        -:   34:#endif
+        -:   35:
+        -:   36:#pragma GCC diagnostic push
+        -:   37:#pragma GCC diagnostic ignored "-Wpedantic" // anon struct
+        -:   38:
+        -:   39:namespace std _GLIBCXX_VISIBILITY(default)
+        -:   40:{
+        -:   41:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -:   42:
+        -:   43:namespace __detail
+        -:   44:{
+        -:   45:  /**
+        -:   46:   *  @defgroup regex-detail Base and Implementation Classes
+        -:   47:   *  @ingroup regex
+        -:   48:   *  @{
+        -:   49:   */
+        -:   50:
+        -:   51:  typedef long _StateIdT;
+        -:   52:  _GLIBCXX17_INLINE constexpr _StateIdT _S_invalid_state_id  = -1;
+        -:   53:
+        -:   54:  template<typename _CharT>
+        -:   55:    using _Matcher = std::function<bool (_CharT)>;
+        -:   56:
+        -:   57:  /// Operation codes that define the type of transitions within the base NFA
+        -:   58:  /// that represents the regular expression.
+        -:   59:  enum _Opcode : int
+        -:   60:  {
+        -:   61:      _S_opcode_unknown,
+        -:   62:      _S_opcode_alternative,
+        -:   63:      _S_opcode_repeat,
+        -:   64:      _S_opcode_backref,
+        -:   65:      _S_opcode_line_begin_assertion,
+        -:   66:      _S_opcode_line_end_assertion,
+        -:   67:      _S_opcode_word_boundary,
+        -:   68:      _S_opcode_subexpr_lookahead,
+        -:   69:      _S_opcode_subexpr_begin,
+        -:   70:      _S_opcode_subexpr_end,
+        -:   71:      _S_opcode_dummy,
+        -:   72:      _S_opcode_match,
+        -:   73:      _S_opcode_accept,
+        -:   74:  };
+        -:   75:
+        -:   76:  struct _State_base
+        -:   77:  {
+        -:   78:  protected:
+        -:   79:    _Opcode      _M_opcode;           // type of outgoing transition
+        -:   80:
+        -:   81:  public:
+        -:   82:    _StateIdT    _M_next;             // outgoing transition
+        -:   83:    union // Since they are mutually exclusive.
+        -:   84:    {
+        -:   85:      size_t _M_subexpr;        // for _S_opcode_subexpr_*
+        -:   86:      size_t _M_backref_index;  // for _S_opcode_backref
+        -:   87:      struct
+        -:   88:      {
+        -:   89:	// for _S_opcode_alternative, _S_opcode_repeat and
+        -:   90:	// _S_opcode_subexpr_lookahead
+        -:   91:	_StateIdT  _M_alt;
+        -:   92:	// for _S_opcode_word_boundary or _S_opcode_subexpr_lookahead or
+        -:   93:	// quantifiers (ungreedy if set true)
+        -:   94:	bool       _M_neg;
+        -:   95:      };
+        -:   96:      // For _S_opcode_match
+        -:   97:      __gnu_cxx::__aligned_membuf<_Matcher<char>> _M_matcher_storage;
+        -:   98:    };
+        -:   99:
+        -:  100:  protected:
+    #####:  101:    explicit _State_base(_Opcode __opcode) noexcept
+    #####:  102:    : _M_opcode(__opcode), _M_next(_S_invalid_state_id)
+    #####:  103:    { }
+        -:  104:
+        -:  105:  public:
+        -:  106:    bool
+    #####:  107:    _M_has_alt() const noexcept
+        -:  108:    {
+    #####:  109:      return _M_opcode == _S_opcode_alternative
+    #####:  110:	|| _M_opcode == _S_opcode_repeat
+    #####:  111:	|| _M_opcode == _S_opcode_subexpr_lookahead;
+        -:  112:    }
+        -:  113:
+        -:  114:#ifdef _GLIBCXX_DEBUG
+        -:  115:    std::ostream&
+        -:  116:    _M_print(std::ostream& __ostr) const;
+        -:  117:
+        -:  118:    // Prints graphviz dot commands for state.
+        -:  119:    std::ostream&
+        -:  120:    _M_dot(std::ostream& __ostr, _StateIdT __id) const;
+        -:  121:#endif
+        -:  122:  };
+        -:  123:
+        -:  124:  template<typename _Char_type>
+        -:  125:    struct _State : _State_base
+        -:  126:    {
+        -:  127:      typedef _Matcher<_Char_type> _MatcherT;
+        -:  128:      static_assert(sizeof(_MatcherT) == sizeof(_Matcher<char>),
+        -:  129:		    "std::function<bool(T)> has the same size as "
+        -:  130:		    "std::function<bool(char)>");
+        -:  131:      static_assert(alignof(_MatcherT) == alignof(_Matcher<char>),
+        -:  132:		    "std::function<bool(T)> has the same alignment as "
+        -:  133:		    "std::function<bool(char)>");
+        -:  134:
+        -:  135:      explicit
+    #####:  136:      _State(_Opcode __opcode) noexcept : _State_base(__opcode)
+        -:  137:      {
+    #####:  138:	if (_M_opcode() == _S_opcode_match)
+    #####:  139:	  new (this->_M_matcher_storage._M_addr()) _MatcherT();
+    #####:  140:      }
+        -:  141:
+    #####:  142:      _State(const _State& __rhs) : _State_base(__rhs)
+        -:  143:      {
+    #####:  144:	if (__rhs._M_opcode() == _S_opcode_match)
+    #####:  145:	  new (this->_M_matcher_storage._M_addr())
+    #####:  146:	    _MatcherT(__rhs._M_get_matcher());
+    #####:  147:      }
+        -:  148:
+    #####:  149:      _State(_State&& __rhs) noexcept : _State_base(__rhs)
+        -:  150:      {
+    #####:  151:	if (__rhs._M_opcode() == _S_opcode_match)
+    #####:  152:	  new (this->_M_matcher_storage._M_addr())
+    #####:  153:	    _MatcherT(std::move(__rhs._M_get_matcher()));
+    #####:  154:      }
+        -:  155:
+        -:  156:      _State&
+        -:  157:      operator=(const _State&) = delete;
+        -:  158:
+    #####:  159:      ~_State()
+        -:  160:      {
+    #####:  161:	if (_M_opcode() == _S_opcode_match)
+    #####:  162:	  _M_get_matcher().~_MatcherT();
+    #####:  163:      }
+        -:  164:
+        -:  165:      // Since correct ctor and dtor rely on _M_opcode, it's better not to
+        -:  166:      // change it over time.
+        -:  167:      _Opcode
+    #####:  168:      _M_opcode() const noexcept
+    #####:  169:      { return _State_base::_M_opcode; }
+        -:  170:
+        -:  171:      bool
+    #####:  172:      _M_matches(_Char_type __char) const
+    #####:  173:      { return _M_get_matcher()(__char); }
+        -:  174:
+        -:  175:      _MatcherT&
+    #####:  176:      _M_get_matcher() noexcept
+    #####:  177:      { return *static_cast<_MatcherT*>(this->_M_matcher_storage._M_addr()); }
+        -:  178:
+        -:  179:      const _MatcherT&
+    #####:  180:      _M_get_matcher() const noexcept
+        -:  181:      {
+        -:  182:	return *static_cast<const _MatcherT*>(
+    #####:  183:	    this->_M_matcher_storage._M_addr());
+        -:  184:      }
+        -:  185:    };
+        -:  186:
+        -:  187:  struct _NFA_base
+        -:  188:  {
+        -:  189:    typedef regex_constants::syntax_option_type _FlagT;
+        -:  190:
+        -:  191:    explicit
+    #####:  192:    _NFA_base(_FlagT __f) noexcept
+    #####:  193:    : _M_flags(__f), _M_start_state(0), _M_subexpr_count(0),
+    #####:  194:    _M_has_backref(false)
+    #####:  195:    { }
+        -:  196:
+        -:  197:    _NFA_base(_NFA_base&&) = default;
+        -:  198:
+        -:  199:  protected:
+    #####:  200:    ~_NFA_base() = default;
+        -:  201:
+        -:  202:  public:
+        -:  203:    _FlagT
+    #####:  204:    _M_options() const noexcept
+    #####:  205:    { return _M_flags; }
+        -:  206:
+        -:  207:    _StateIdT
+    #####:  208:    _M_start() const noexcept
+    #####:  209:    { return _M_start_state; }
+        -:  210:
+        -:  211:    size_t
+    #####:  212:    _M_sub_count() const noexcept
+    #####:  213:    { return _M_subexpr_count; }
+        -:  214:
+        -:  215:    _GLIBCXX_STD_C::vector<size_t> _M_paren_stack;
+        -:  216:    _FlagT                    _M_flags;
+        -:  217:    _StateIdT                 _M_start_state;
+        -:  218:    size_t                    _M_subexpr_count;
+        -:  219:    bool                      _M_has_backref;
+        -:  220:  };
+        -:  221:
+        -:  222:  template<typename _TraitsT>
+        -:  223:    struct _NFA
+        -:  224:    : _NFA_base, _GLIBCXX_STD_C::vector<_State<typename _TraitsT::char_type>>
+        -:  225:    {
+        -:  226:      typedef typename _TraitsT::char_type	_Char_type;
+        -:  227:      typedef _State<_Char_type>		_StateT;
+        -:  228:      typedef _Matcher<_Char_type>		_MatcherT;
+        -:  229:
+    #####:  230:      _NFA(const typename _TraitsT::locale_type& __loc, _FlagT __flags)
+    #####:  231:      : _NFA_base(__flags)
+    #####:  232:      { _M_traits.imbue(__loc); }
+        -:  233:
+        -:  234:      // for performance reasons _NFA objects should only be moved not copied
+        -:  235:      _NFA(const _NFA&) = delete;
+        -:  236:      _NFA(_NFA&&) = default;
+        -:  237:
+        -:  238:      _StateIdT
+    #####:  239:      _M_insert_accept()
+        -:  240:      {
+    #####:  241:	auto __ret = _M_insert_state(_StateT(_S_opcode_accept));
+    #####:  242:	return __ret;
+        -:  243:      }
+        -:  244:
+        -:  245:      _StateIdT
+    #####:  246:      _M_insert_alt(_StateIdT __next, _StateIdT __alt,
+        -:  247:		    bool __neg __attribute__((__unused__)))
+        -:  248:      {
+    #####:  249:	_StateT __tmp(_S_opcode_alternative);
+        -:  250:	// It labels every quantifier to make greedy comparison easier in BFS
+        -:  251:	// approach.
+    #####:  252:	__tmp._M_next = __next;
+    #####:  253:	__tmp._M_alt = __alt;
+    #####:  254:	return _M_insert_state(std::move(__tmp));
+    #####:  255:      }
+        -:  256:
+        -:  257:      _StateIdT
+    #####:  258:      _M_insert_repeat(_StateIdT __next, _StateIdT __alt, bool __neg)
+        -:  259:      {
+    #####:  260:	_StateT __tmp(_S_opcode_repeat);
+        -:  261:	// It labels every quantifier to make greedy comparison easier in BFS
+        -:  262:	// approach.
+    #####:  263:	__tmp._M_next = __next;
+    #####:  264:	__tmp._M_alt = __alt;
+    #####:  265:	__tmp._M_neg = __neg;
+    #####:  266:	return _M_insert_state(std::move(__tmp));
+    #####:  267:      }
+        -:  268:
+        -:  269:      _StateIdT
+    #####:  270:      _M_insert_matcher(_MatcherT __m)
+        -:  271:      {
+    #####:  272:	_StateT __tmp(_S_opcode_match);
+    #####:  273:	__tmp._M_get_matcher() = std::move(__m);
+    #####:  274:	return _M_insert_state(std::move(__tmp));
+    #####:  275:      }
+        -:  276:
+        -:  277:      _StateIdT
+    #####:  278:      _M_insert_subexpr_begin()
+        -:  279:      {
+    #####:  280:	auto __id = this->_M_subexpr_count++;
+    #####:  281:	this->_M_paren_stack.push_back(__id);
+    #####:  282:	_StateT __tmp(_S_opcode_subexpr_begin);
+    #####:  283:	__tmp._M_subexpr = __id;
+    #####:  284:	return _M_insert_state(std::move(__tmp));
+    #####:  285:      }
+        -:  286:
+        -:  287:      _StateIdT
+    #####:  288:      _M_insert_subexpr_end()
+        -:  289:      {
+    #####:  290:	_StateT __tmp(_S_opcode_subexpr_end);
+    #####:  291:	__tmp._M_subexpr = this->_M_paren_stack.back();
+    #####:  292:	this->_M_paren_stack.pop_back();
+    #####:  293:	return _M_insert_state(std::move(__tmp));
+    #####:  294:      }
+        -:  295:
+        -:  296:      _StateIdT
+        -:  297:      _M_insert_backref(size_t __index);
+        -:  298:
+        -:  299:      _StateIdT
+    #####:  300:      _M_insert_line_begin()
+    #####:  301:      { return _M_insert_state(_StateT(_S_opcode_line_begin_assertion)); }
+        -:  302:
+        -:  303:      _StateIdT
+    #####:  304:      _M_insert_line_end()
+    #####:  305:      { return _M_insert_state(_StateT(_S_opcode_line_end_assertion)); }
+        -:  306:
+        -:  307:      _StateIdT
+    #####:  308:      _M_insert_word_bound(bool __neg)
+        -:  309:      {
+    #####:  310:	_StateT __tmp(_S_opcode_word_boundary);
+    #####:  311:	__tmp._M_neg = __neg;
+    #####:  312:	return _M_insert_state(std::move(__tmp));
+    #####:  313:      }
+        -:  314:
+        -:  315:      _StateIdT
+    #####:  316:      _M_insert_lookahead(_StateIdT __alt, bool __neg)
+        -:  317:      {
+    #####:  318:	_StateT __tmp(_S_opcode_subexpr_lookahead);
+    #####:  319:	__tmp._M_alt = __alt;
+    #####:  320:	__tmp._M_neg = __neg;
+    #####:  321:	return _M_insert_state(std::move(__tmp));
+    #####:  322:      }
+        -:  323:
+        -:  324:      _StateIdT
+    #####:  325:      _M_insert_dummy()
+    #####:  326:      { return _M_insert_state(_StateT(_S_opcode_dummy)); }
+        -:  327:
+        -:  328:      _StateIdT
+    #####:  329:      _M_insert_state(_StateT __s)
+        -:  330:      {
+    #####:  331:	this->push_back(std::move(__s));
+    #####:  332:	if (this->size() > _GLIBCXX_REGEX_STATE_LIMIT)
+    #####:  333:	  __throw_regex_error(
+        -:  334:	    regex_constants::error_space,
+        -:  335:	    "Number of NFA states exceeds limit. Please use shorter regex "
+        -:  336:	    "string, or use smaller brace expression, or make "
+        -:  337:	    "_GLIBCXX_REGEX_STATE_LIMIT larger.");
+    #####:  338:	return this->size() - 1;
+        -:  339:      }
+        -:  340:
+        -:  341:      // Eliminate dummy node in this NFA to make it compact.
+        -:  342:      void
+        -:  343:      _M_eliminate_dummy();
+        -:  344:
+        -:  345:#ifdef _GLIBCXX_DEBUG
+        -:  346:      std::ostream&
+        -:  347:      _M_dot(std::ostream& __ostr) const;
+        -:  348:#endif
+        -:  349:    public:
+        -:  350:      _TraitsT                  _M_traits;
+        -:  351:    };
+        -:  352:
+        -:  353:  /// Describes a sequence of one or more %_State, its current start
+        -:  354:  /// and end(s).  This structure contains fragments of an NFA during
+        -:  355:  /// construction.
+        -:  356:  template<typename _TraitsT>
+        -:  357:    class _StateSeq
+        -:  358:    {
+        -:  359:    public:
+        -:  360:      typedef _NFA<_TraitsT> _RegexT;
+        -:  361:
+        -:  362:    public:
+    #####:  363:      _StateSeq(_RegexT& __nfa, _StateIdT __s)
+    #####:  364:      : _M_nfa(__nfa), _M_start(__s), _M_end(__s)
+    #####:  365:      { }
+        -:  366:
+    #####:  367:      _StateSeq(_RegexT& __nfa, _StateIdT __s, _StateIdT __end)
+    #####:  368:      : _M_nfa(__nfa), _M_start(__s), _M_end(__end)
+    #####:  369:      { }
+        -:  370:
+        -:  371:      // Append a state on *this and change *this to the new sequence.
+        -:  372:      void
+    #####:  373:      _M_append(_StateIdT __id)
+        -:  374:      {
+    #####:  375:	_M_nfa[_M_end]._M_next = __id;
+    #####:  376:	_M_end = __id;
+    #####:  377:      }
+        -:  378:
+        -:  379:      // Append a sequence on *this and change *this to the new sequence.
+        -:  380:      void
+    #####:  381:      _M_append(const _StateSeq& __s)
+        -:  382:      {
+    #####:  383:	_M_nfa[_M_end]._M_next = __s._M_start;
+    #####:  384:	_M_end = __s._M_end;
+    #####:  385:      }
+        -:  386:
+        -:  387:      // Clones an entire sequence.
+        -:  388:      _StateSeq
+        -:  389:      _M_clone();
+        -:  390:
+        -:  391:    public:
+        -:  392:      _RegexT&  _M_nfa;
+        -:  393:      _StateIdT _M_start;
+        -:  394:      _StateIdT _M_end;
+        -:  395:    };
+        -:  396:
+        -:  397: ///@} regex-detail
+        -:  398:} // namespace __detail
+        -:  399:
+        -:  400:_GLIBCXX_END_NAMESPACE_VERSION
+        -:  401:} // namespace std
+        -:  402:
+        -:  403:#pragma GCC diagnostic pop
+        -:  404:
+        -:  405:#include <bits/regex_automaton.tcc>

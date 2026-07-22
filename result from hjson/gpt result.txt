@@ -1,4 +1,4 @@
-meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/result from hjson$ python3 compare_trace.py truth_trace.json gpt_trace.json
+meoluoi@meoluoi3:/mnt/e/UET/LAB/llm-trace-fidelity/hjson-cpp$ python3 compare_trace.py truth_trace.json gpt_trace.json
 Steps compared: 11
 Total (step, var) checks: 15
 Wrong branch/line order: 6
